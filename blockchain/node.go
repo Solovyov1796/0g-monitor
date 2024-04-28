@@ -86,7 +86,7 @@ func FindMaxBlockHeight(nodes []*Node) uint64 {
 	max := uint64(0)
 
 	for _, v := range nodes {
-		if v.rpcHealth.unhealthyAt.IsZero() && max < v.height {
+		if !v.rpcHealth.HasError() && max < v.height {
 			max = v.height
 		}
 	}
@@ -96,7 +96,7 @@ func FindMaxBlockHeight(nodes []*Node) uint64 {
 
 func (node *Node) CheckHeight(config *HeightReportConfig, target uint64) {
 	// ignore on rpc error
-	if !node.rpcHealth.unhealthyAt.IsZero() {
+	if !node.rpcHealth.HasError() {
 		return
 	}
 
