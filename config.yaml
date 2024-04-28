@@ -4,17 +4,16 @@
 #   disableColor: false
 
 # blockchain:
-  # nodes:
-  #   node0: http://ip0:8545
-  #   node1: http://ip1:8545
-  #   node2: http://ip2:8545
-  #   node3: http://ip3:8545
-  # interval: 5s
-  # availabilityReport:
-  #   threshold: 1m
-  #   reminder: 5m
-  # heightReport:
-  #   ErrorTolerantReportConfig:
-  #     threshold: 1m
-  #     reminder: 5m
-  #   maxGap: 30
+#   nodes:
+#     node0: http://ip0:8545
+#     node1: http://ip1:8545
+#     node2: http://ip2:8545
+#   interval: 5s
+#   availabilityReport:
+#     threshold: 1m
+#     reminder: 5m
+#   heightReport:
+#     ErrorTolerantReportConfig:
+#       threshold: 1m
+#       reminder: 5m
+#     maxGap: 30
