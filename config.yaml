@@ -24,8 +24,11 @@
 #   availabilityReport:
 #     threshold: 1m
 #     reminder: 5m
-#   heightReport:
+#   nodeHeightReport:
 #     ErrorTolerantReportConfig:
 #       threshold: 1m
 #       reminder: 5m
 #     maxGap: 30
+#   blockchainHeightReport:
+#     threshold: 1m
+#     reminder: 5m

@@ -8,10 +8,11 @@ import (
 )
 
 type Config struct {
-	Nodes              map[string]string
-	Interval           time.Duration `default:"5s"`
-	AvailabilityReport ErrorTolerantReportConfig
-	HeightReport       HeightReportConfig
+	Nodes                  map[string]string
+	Interval               time.Duration `default:"5s"`
+	AvailabilityReport     ErrorTolerantReportConfig
+	NodeHeightReport       HeightReportConfig
+	BlockchainHeightReport ErrorTolerantReportConfig
 }
 
 func MustMonitorFromViper() {
@@ -60,7 +61,9 @@ func monitorOnce(config *Config, nodes []*Node) {
 
 	logrus.WithField("height", max).Debug("Fullnode status report")
 
+	blockchainHeightHealth.Update(&config.BlockchainHeightReport, max)
+
 	for _, v := range nodes {
-		v.CheckHeight(&config.HeightReport, max)
+		v.CheckHeight(&config.NodeHeightReport, max)
 	}
 }

@@ -5,6 +5,7 @@ This is to monitor all 0G services, including blockchain fullnodes, storage node
 - Blockchain
     - Fullnode RPC availability via `eth_blockNumber`.
     - Whether block height fall behind, e.g. 30 blocks behind the highest block height.
+    - Whether blockchain height stops growing.
 
 ## Configuration
 
