@@ -2,17 +2,19 @@
 
 This is to monitor all 0G services, including blockchain fullnodes, storage nodes and some other infrastructures.
 
+- Blockchain
+    - Fullnode RPC availability via `eth_blockNumber`.
+    - Whether block height fall behind, e.g. 30 blocks behind the highest block height.
+
 ## Configuration
 
 There are two files to configure monitoring parameters:
 
-- `config.yaml`: change any configurations and uncomment out.
-- `.env`: overwrite configurations via environment variables prefixed with `ZG_MONITOR`.
-
-Generally, blockchain fullnodes should be configured, e.g. in `.env` file:
+- `config.yaml`: change any default configurations and uncomment out.
+- `.env`: recommended, overwrite configurations via environment variables prefixed with `ZG_MONITOR`, for example:
 
 ```shell
-# Enable alert configurations
+# Enable alert configurations (dingtalk)
 export ZG_MONITOR_ALERT_DINGTALK_ENABLED=true
 export ZG_MONITOR_ALERT_CUSTOMTAGS="testnet"
 export ZG_MONITOR_ALERT_DINGTALK_WEBHOOK="${dingtalk_webhook_url}"
