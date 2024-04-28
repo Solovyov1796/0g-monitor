@@ -12,8 +12,13 @@ There are two files to configure monitoring parameters:
 Generally, blockchain fullnodes should be configured, e.g. in `.env` file:
 
 ```shell
-export ZG_MONITOR_LOG_LEVEL=debug
+# Enable alert configurations
+export ZG_MONITOR_ALERT_DINGTALK_ENABLED=true
+export ZG_MONITOR_ALERT_CUSTOMTAGS="testnet"
+export ZG_MONITOR_ALERT_DINGTALK_WEBHOOK="${dingtalk_webhook_url}"
+export ZG_MONITOR_ALERT_DINGTALK_SECRET="${dingtalk_secret}"
 
+# Configure blockchain monitoring variables
 export ZG_MONITOR_BLOCKCHAIN_NODES_NODE0="http://ip0:8545"
 export ZG_MONITOR_BLOCKCHAIN_NODES_NODE1="http://ip1:8545"
 export ZG_MONITOR_BLOCKCHAIN_NODES_NODE2="http://ip2:8545"

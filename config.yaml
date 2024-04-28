@@ -1,8 +1,20 @@
+# Log Configurations
 # log:
 #   level: info
 #   forceColor: false
 #   disableColor: false
 
+# Alert Configurations
+# alert:
+#   customTags: [testnet,dev]
+#   dingtalk:
+#     enabled: false
+#     webhook: https://oapi.dingtalk.com/robot/send?access_token=${your_access_token}
+#     secret:  ${your_access_secret}
+#     atMobiles: []
+#     isAtAll: false
+
+# Blockchain Monitoring Configurations
 # blockchain:
 #   nodes:
 #     node0: http://ip0:8545
