@@ -24,10 +24,6 @@ func init() {
 
 func initConfig() {
 	config.MustInit("ZG_MONITOR")
-	log.AddDingTalkAlertHook([]logrus.Level{
-		logrus.WarnLevel,
-		logrus.ErrorLevel,
-	})
 }
 
 func start(*cobra.Command, []string) {

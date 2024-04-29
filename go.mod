@@ -3,7 +3,7 @@ module github.com/0glabs/0g-monitor
 go 1.20
 
 require (
-	github.com/Conflux-Chain/go-conflux-util v0.2.1-0.20240426064804-624dd64b5378
+	github.com/Conflux-Chain/go-conflux-util v0.2.1-0.20240429024150-35904d3947a4
 	github.com/openweb3/web3go v0.2.7
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.0
