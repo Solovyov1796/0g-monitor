@@ -10,8 +10,10 @@ if [[ "$pid" != "" ]]; then
     exit 1
 fi
 
-if [ -f .env ]; then
-    source .env
+if ! [ -f .env ]; then
+    echo "Error: .env file not found under `pwd`"
+    exit 1
 fi
 
+source .env
 nohup ./0g-monitor --log-disable-color &
