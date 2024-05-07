@@ -1,6 +1,8 @@
 package blockchain
 
 import (
+	"fmt"
+
 	"github.com/openweb3/web3go"
 	"github.com/sirupsen/logrus"
 )
@@ -45,7 +47,7 @@ func (node *Node) UpdateHeight(config *ErrorTolerantReportConfig) {
 		if unhealthy {
 			logrus.WithFields(logrus.Fields{
 				"node":    node.name,
-				"elapsed": elapsed,
+				"elapsed": fmt.Sprint(elapsed),
 				"error":   node.rpcError,
 			}).Error("Node RPC became unhealthy")
 		}
@@ -54,7 +56,7 @@ func (node *Node) UpdateHeight(config *ErrorTolerantReportConfig) {
 		if unrecovered {
 			logrus.WithFields(logrus.Fields{
 				"node":    node.name,
-				"elapsed": elapsed,
+				"elapsed": fmt.Sprint(elapsed),
 				"error":   node.rpcError,
 			}).Error("Node RPC not recovered yet")
 		}
@@ -76,7 +78,7 @@ func (node *Node) UpdateHeight(config *ErrorTolerantReportConfig) {
 		if recovered, elapsed := node.rpcHealth.OnSuccess(config); recovered {
 			logrus.WithFields(logrus.Fields{
 				"node":    node.name,
-				"elapsed": elapsed,
+				"elapsed": fmt.Sprint(elapsed),
 			}).Warn("Node RPC is healthy now")
 		}
 	}
@@ -110,7 +112,7 @@ func (node *Node) CheckHeight(config *HeightReportConfig, target uint64) {
 		if recovered, elapsed := node.heightHealth.OnSuccess(&config.ErrorTolerantReportConfig); recovered {
 			logrus.WithFields(logrus.Fields{
 				"node":    node.name,
-				"elapsed": elapsed,
+				"elapsed": fmt.Sprint(elapsed),
 				"behind":  behind,
 			}).Warn("Node block height is healthy now")
 		}
@@ -120,7 +122,7 @@ func (node *Node) CheckHeight(config *HeightReportConfig, target uint64) {
 		if unhealthy {
 			logrus.WithFields(logrus.Fields{
 				"node":    node.name,
-				"elapsed": elapsed,
+				"elapsed": fmt.Sprint(elapsed),
 				"behind":  behind,
 			}).Error("Node block height became unhealthy")
 		}
@@ -128,7 +130,7 @@ func (node *Node) CheckHeight(config *HeightReportConfig, target uint64) {
 		if unrecovered {
 			logrus.WithFields(logrus.Fields{
 				"node":    node.name,
-				"elapsed": elapsed,
+				"elapsed": fmt.Sprint(elapsed),
 				"behind":  behind,
 			}).Error("Node block height not recovered yet")
 		}

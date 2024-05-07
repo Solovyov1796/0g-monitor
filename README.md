@@ -32,6 +32,10 @@ export ZG_MONITOR_ALERT_CHANNELS_TELEGRAM_CHATID="${telegram_chat_id}"
 export ZG_MONITOR_BLOCKCHAIN_NODES_NODE0="http://ip0:8545"
 export ZG_MONITOR_BLOCKCHAIN_NODES_NODE1="http://ip1:8545"
 export ZG_MONITOR_BLOCKCHAIN_NODES_NODE2="http://ip2:8545"
+
+export ZG_MONITOR_BLOCKCHAIN_VALIDATORS_VAL0="kavavalcons17metfygkc7aezdrx6aucnpsh7ggh4lrhrawj66"
+export ZG_MONITOR_BLOCKCHAIN_VALIDATORS_VAL1="kavavalcons17metfygkc7aezdrx6aucnpsh7ggh4lrhrawj67"
+export ZG_MONITOR_BLOCKCHAIN_VALIDATORS_VAL2="kavavalcons17metfygkc7aezdrx6aucnpsh7ggh4lrhrawj68"
 ```
 
 ## Run

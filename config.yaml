@@ -47,3 +47,10 @@
 #   blockchainHeightReport:
 #     threshold: 1m
 #     reminder: 5m
+#   validators:
+#     val0: valaddress0
+#     val1: valaddress1
+#     val2: valaddress2
+#   validatorReport:
+#     threshold: 1m
+#     reminder: 5m

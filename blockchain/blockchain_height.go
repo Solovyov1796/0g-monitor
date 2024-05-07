@@ -1,8 +1,12 @@
 package blockchain
 
-import "github.com/sirupsen/logrus"
+import (
+	"fmt"
 
-var blockchainHeightHealth BlockchainHeightHealth
+	"github.com/sirupsen/logrus"
+)
+
+var defaultBlockchainHeightHealth BlockchainHeightHealth
 
 type BlockchainHeightHealth struct {
 	height uint64
@@ -13,7 +17,7 @@ func (bhh *BlockchainHeightHealth) Update(config *ErrorTolerantReportConfig, hei
 	if height > bhh.height {
 		if recovered, elapsed := bhh.health.OnSuccess(config); recovered {
 			logrus.WithFields(logrus.Fields{
-				"elapsed": elapsed,
+				"elapsed": fmt.Sprint(elapsed),
 				"old":     bhh.height,
 				"new":     height,
 			}).Warn("Blockchain height is growing again")
@@ -30,14 +34,14 @@ func (bhh *BlockchainHeightHealth) Update(config *ErrorTolerantReportConfig, hei
 
 		if unhealthy {
 			logrus.WithFields(logrus.Fields{
-				"elapsed": elapsed,
+				"elapsed": fmt.Sprint(elapsed),
 				"height":  newHeight,
 			}).Error("Blockchain height stops growing")
 		}
 
 		if unrecovered {
 			logrus.WithFields(logrus.Fields{
-				"elapsed": elapsed,
+				"elapsed": fmt.Sprint(elapsed),
 				"height":  newHeight,
 			}).Error("Blockchain height stops growing for a long time and not recovered yet")
 		}

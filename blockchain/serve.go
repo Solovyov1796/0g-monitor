@@ -13,6 +13,8 @@ type Config struct {
 	AvailabilityReport     ErrorTolerantReportConfig
 	NodeHeightReport       HeightReportConfig
 	BlockchainHeightReport ErrorTolerantReportConfig
+	Validators             map[string]string
+	ValidatorReport        ErrorTolerantReportConfig
 }
 
 func MustMonitorFromViper() {
@@ -22,7 +24,10 @@ func MustMonitorFromViper() {
 }
 
 func Monitor(config Config) {
-	logrus.WithField("nodes", len(config.Nodes)).Info("Start to monitor blockchain")
+	logrus.WithFields(logrus.Fields{
+		"nodes":      len(config.Nodes),
+		"validators": len(config.Validators),
+	}).Info("Start to monitor blockchain")
 
 	if len(config.Nodes) == 0 {
 		return
@@ -40,16 +45,22 @@ func Monitor(config Config) {
 		}
 	}()
 
+	var validators []*Validator
+	for name, address := range config.Validators {
+		logrus.WithField("name", name).WithField("address", address).Debug("Start to monitor validator")
+		validators = append(validators, MustNewValidator(nodes[0].Client, name, address))
+	}
+
 	// Monitor node status periodically
 	ticker := time.NewTicker(config.Interval)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		monitorOnce(&config, nodes)
+		monitorOnce(&config, nodes, validators)
 	}
 }
 
-func monitorOnce(config *Config, nodes []*Node) {
+func monitorOnce(config *Config, nodes []*Node, validators []*Validator) {
 	for _, v := range nodes {
 		v.UpdateHeight(&config.AvailabilityReport)
 	}
@@ -61,9 +72,13 @@ func monitorOnce(config *Config, nodes []*Node) {
 
 	logrus.WithField("height", max).Debug("Fullnode status report")
 
-	blockchainHeightHealth.Update(&config.BlockchainHeightReport, max)
+	defaultBlockchainHeightHealth.Update(&config.BlockchainHeightReport, max)
 
 	for _, v := range nodes {
 		v.CheckHeight(&config.NodeHeightReport, max)
+	}
+
+	for _, v := range validators {
+		v.Update(&config.ValidatorReport)
 	}
 }
