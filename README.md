@@ -15,13 +15,20 @@ There are two files to configure monitoring parameters:
 - `.env`: recommended, overwrite configurations via environment variables prefixed with `ZG_MONITOR`, for example:
 
 ```shell
-# Enable alert configurations (dingtalk)
-export ZG_MONITOR_ALERT_DINGTALK_ENABLED=true
-export ZG_MONITOR_ALERT_CUSTOMTAGS="testnet"
-export ZG_MONITOR_ALERT_DINGTALK_WEBHOOK="${dingtalk_webhook_url}"
-export ZG_MONITOR_ALERT_DINGTALK_SECRET="${dingtalk_secret}"
+# Log Configurations
+export ZG_MONITOR_LOG_ALERTHOOK_CHANNELS="dingtalk,telegram"
 
-# Configure blockchain monitoring variables
+
+# Alert Configurations
+export ZG_MONITOR_ALERT_CUSTOMTAGS="testnet"
+export ZG_MONITOR_ALERT_CHANNELS_DINGTALK_PLATFORM="dingtalk"
+export ZG_MONITOR_ALERT_CHANNELS_DINGTALK_WEBHOOK="${dingtalk_webhook_url}"
+export ZG_MONITOR_ALERT_CHANNELS_DINGTALK_SECRET="${dingtalk_secret}"
+export ZG_MONITOR_ALERT_CHANNELS_TELEGRAM_PLATFORM="telegram"
+export ZG_MONITOR_ALERT_CHANNELS_TELEGRAM_APITOKEN="${telegram_api_token}"
+export ZG_MONITOR_ALERT_CHANNELS_TELEGRAM_CHATID="${telegram_chat_id}"
+
+# Blockchain Monitoring Configurations
 export ZG_MONITOR_BLOCKCHAIN_NODES_NODE0="http://ip0:8545"
 export ZG_MONITOR_BLOCKCHAIN_NODES_NODE1="http://ip1:8545"
 export ZG_MONITOR_BLOCKCHAIN_NODES_NODE2="http://ip2:8545"
@@ -38,3 +45,5 @@ source .env
 # Start monitoring service.
 ./0g-monitor
 ```
+
+or execute the `./script/start.sh` file to start monitoring service directly.

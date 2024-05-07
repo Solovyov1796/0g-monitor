@@ -33,10 +33,8 @@ github.com/Azure/go-autorest/logger v0.1.0/go.mod h1:oExouG+K6PryycPJfVSxi/koC6L
 github.com/Azure/go-autorest/tracing v0.5.0/go.mod h1:r/s2XiOKccPW3HrqB+W0TQzfbtp2fGCgRFtBroKn4Dk=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
-github.com/Conflux-Chain/go-conflux-util v0.2.1-0.20240426064804-624dd64b5378 h1:6CAcJ5a65qxRr9763snQWvj5x6+A7Zu6Eq/taDdttI8=
-github.com/Conflux-Chain/go-conflux-util v0.2.1-0.20240426064804-624dd64b5378/go.mod h1:RWNaNcOWcZ5xUCTNYm3Q3xE5MX0izDylps1PI8ctRGA=
-github.com/Conflux-Chain/go-conflux-util v0.2.1-0.20240429024150-35904d3947a4 h1:rZP1Dp3032BdEmhDZkjBBbqG03Xm95KP90HLVS3X+/g=
-github.com/Conflux-Chain/go-conflux-util v0.2.1-0.20240429024150-35904d3947a4/go.mod h1:RWNaNcOWcZ5xUCTNYm3Q3xE5MX0izDylps1PI8ctRGA=
+github.com/Conflux-Chain/go-conflux-util v0.2.1-0.20240507025502-1c09c8805ec2 h1:d0sSc6B1NEAIvtL/YdkioBFDfyfhvUOBuNnRytX4hs4=
+github.com/Conflux-Chain/go-conflux-util v0.2.1-0.20240507025502-1c09c8805ec2/go.mod h1:za8Uv/zQzOmHC8l3P11WHDjtaJpAnueI5sT+F/7isas=
 github.com/DATA-DOG/go-sqlmock v1.3.3/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q5eFN3EC/SaM=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
 github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 h1:fLjPD/aNc3UIOA6tDi6QXUemppXK3P9BI7mr2hd6gx8=
@@ -163,6 +161,8 @@ github.com/go-sourcemap/sourcemap v2.1.3+incompatible/go.mod h1:F8jJfvm2KbVjc5Nq
 github.com/go-sql-driver/mysql v1.4.1/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
 github.com/go-stack/stack v1.8.0 h1:5SgMzNM5HxrEjV0ww2lTmX6E2Izsfxas4+YHWRs3Lsk=
 github.com/go-stack/stack v1.8.0/go.mod h1:v0f6uXyyMGvRgIKkXu+yp6POWl0qKG85gN/melR3HDY=
+github.com/go-telegram/bot v1.2.2 h1:LwGbSzjcSi0w4Ke8JUpgbBhJwwYTl2ITmhubeM2WvN8=
+github.com/go-telegram/bot v1.2.2/go.mod h1:i2TRs7fXWIeaceF3z7KzsMt/he0TwkVC680mvdTFYeM=
 github.com/gofrs/uuid v3.3.0+incompatible/go.mod h1:b2aQJv3Z4Fp6yNu3cdSllBxTCLRxnplIgP/c0N/04lM=
 github.com/gogo/protobuf v1.1.1/go.mod h1:r8qH/GZQm5c6nD/R0oafs1akxWv10x8SbQlK7atdtwQ=
 github.com/gogo/protobuf v1.3.1/go.mod h1:SlYgWuQ5SjCEi6WLHjHCa1yvBfUnHcTbrrZtXPKa29o=

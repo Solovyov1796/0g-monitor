@@ -3,7 +3,7 @@ module github.com/0glabs/0g-monitor
 go 1.20
 
 require (
-	github.com/Conflux-Chain/go-conflux-util v0.2.1-0.20240429024150-35904d3947a4
+	github.com/Conflux-Chain/go-conflux-util v0.2.1-0.20240507025502-1c09c8805ec2
 	github.com/openweb3/web3go v0.2.7
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.0
@@ -25,6 +25,7 @@ require (
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-ole/go-ole v1.2.1 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
+	github.com/go-telegram/bot v1.2.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/go-cmp v0.5.7 // indirect
 	github.com/google/uuid v1.1.5 // indirect
