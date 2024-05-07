@@ -11,7 +11,7 @@ This is to monitor all 0G services, including blockchain fullnodes, storage node
 
 There are two files to configure monitoring parameters:
 
-- `config.yaml`: change any default configurations and uncomment out.
+- [config.yaml](./config.yaml): change any default configurations and uncomment out.
 - `.env`: recommended, overwrite configurations via environment variables prefixed with `ZG_MONITOR`, for example:
 
 ```shell
@@ -50,4 +50,10 @@ source .env
 ./0g-monitor
 ```
 
-or execute the `./scripts/start.sh` file to start monitoring service directly.
+## Utilities
+
+There are some helpful scripts as following:
+
+- [./scripts/start.sh](./scripts/start.sh): start monitoring service if not launched yet.
+- [./scripts/stop.sh](./scripts/stop.sh): stop monitoring service if launched.
+- [./scripts/test.sh](./scripts/test.sh): test monitoring service at local.
