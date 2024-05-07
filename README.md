@@ -46,4 +46,4 @@ source .env
 ./0g-monitor
 ```
 
-or execute the `./script/start.sh` file to start monitoring service directly.
+or execute the `./scripts/start.sh` file to start monitoring service directly.
