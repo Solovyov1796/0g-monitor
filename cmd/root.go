@@ -31,6 +31,8 @@ func start(*cobra.Command, []string) {
 
 	startAction(blockchain.MustMonitorFromViper, &wg)
 
+	logrus.Warn("Monitoring service started")
+
 	wg.Wait()
 }
 

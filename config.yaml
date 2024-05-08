@@ -32,6 +32,7 @@
 # Blockchain Monitoring Configurations
 # blockchain:
 #   nodes:
+#     # name -> RPC URL
 #     node0: http://ip0:8545
 #     node1: http://ip1:8545
 #     node2: http://ip2:8545
@@ -48,9 +49,10 @@
 #     threshold: 1m
 #     reminder: 5m
 #   validators:
-#     val0: valaddress0
-#     val1: valaddress1
-#     val2: valaddress2
+#     # name -> bech32 val format address (prefixed with 0gvaloper)
+#     val0: 0gvaloper1hqhdtzuykase0umq5eyzx0u7rq03rjsn2qqwyc
+#     val1: 0gvaloper1260xq9mklfplxe28f2w3msrv9cesqt59mj8q2r
+#     val2: 0gvaloper12q5dc47ptmdqey6xqck4z7uqtx7g9788cfw2va
 #   validatorReport:
 #     threshold: 1m
 #     reminder: 5m
