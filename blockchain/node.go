@@ -2,13 +2,15 @@ package blockchain
 
 import (
 	"fmt"
+	"time"
 
+	"github.com/Conflux-Chain/go-conflux-util/health"
 	"github.com/openweb3/web3go"
 	"github.com/sirupsen/logrus"
 )
 
 type HeightReportConfig struct {
-	ErrorTolerantReportConfig
+	health.TimedCounterConfig
 
 	MaxGap uint64 `default:"30"`
 }
@@ -21,10 +23,10 @@ type Node struct {
 
 	height uint64 // fullnode block number
 
-	rpcHealth Health
+	rpcHealth health.TimedCounter
 	rpcError  string // last rpc error message
 
-	heightHealth Health
+	heightHealth health.TimedCounter
 }
 
 func MustNewNode(name, url string) *Node {
@@ -35,7 +37,7 @@ func MustNewNode(name, url string) *Node {
 	}
 }
 
-func (node *Node) UpdateHeight(config *ErrorTolerantReportConfig) {
+func (node *Node) UpdateHeight(config health.TimedCounterConfig) {
 	bn, err := node.Eth.BlockNumber()
 	if err != nil {
 		logrus.WithError(err).WithField("node", node.name).Debug("Failed to query block number")
@@ -47,7 +49,7 @@ func (node *Node) UpdateHeight(config *ErrorTolerantReportConfig) {
 		if unhealthy {
 			logrus.WithFields(logrus.Fields{
 				"node":    node.name,
-				"elapsed": fmt.Sprint(elapsed),
+				"elapsed": prettyElapsed(elapsed),
 				"error":   node.rpcError,
 			}).Error("Node RPC became unhealthy")
 		}
@@ -55,9 +57,9 @@ func (node *Node) UpdateHeight(config *ErrorTolerantReportConfig) {
 		// remind unhealthy
 		if unrecovered {
 			logrus.WithFields(logrus.Fields{
-				"node":    node.name,
-				"elapsed": fmt.Sprint(elapsed),
-				"error":   node.rpcError,
+				"node":     node.name,
+				"elapsed":  prettyElapsed(elapsed),
+				"rpcError": node.rpcError,
 			}).Error("Node RPC not recovered yet")
 		}
 	} else {
@@ -78,7 +80,7 @@ func (node *Node) UpdateHeight(config *ErrorTolerantReportConfig) {
 		if recovered, elapsed := node.rpcHealth.OnSuccess(config); recovered {
 			logrus.WithFields(logrus.Fields{
 				"node":    node.name,
-				"elapsed": fmt.Sprint(elapsed),
+				"elapsed": prettyElapsed(elapsed),
 			}).Warn("Node RPC is healthy now")
 		}
 	}
@@ -88,7 +90,7 @@ func FindMaxBlockHeight(nodes []*Node) uint64 {
 	max := uint64(0)
 
 	for _, v := range nodes {
-		if !v.rpcHealth.HasError() && max < v.height {
+		if v.rpcHealth.IsSuccess() && max < v.height {
 			max = v.height
 		}
 	}
@@ -98,7 +100,7 @@ func FindMaxBlockHeight(nodes []*Node) uint64 {
 
 func (node *Node) CheckHeight(config *HeightReportConfig, target uint64) {
 	// ignore on rpc error
-	if !node.rpcHealth.HasError() {
+	if !node.rpcHealth.IsSuccess() {
 		return
 	}
 
@@ -109,20 +111,20 @@ func (node *Node) CheckHeight(config *HeightReportConfig, target uint64) {
 	}
 
 	if behind <= config.MaxGap {
-		if recovered, elapsed := node.heightHealth.OnSuccess(&config.ErrorTolerantReportConfig); recovered {
+		if recovered, elapsed := node.heightHealth.OnSuccess(config.TimedCounterConfig); recovered {
 			logrus.WithFields(logrus.Fields{
 				"node":    node.name,
-				"elapsed": fmt.Sprint(elapsed),
+				"elapsed": prettyElapsed(elapsed),
 				"behind":  behind,
 			}).Warn("Node block height is healthy now")
 		}
 	} else {
-		unhealthy, unrecovered, elapsed := node.heightHealth.OnFailure(&config.ErrorTolerantReportConfig)
+		unhealthy, unrecovered, elapsed := node.heightHealth.OnFailure(config.TimedCounterConfig)
 
 		if unhealthy {
 			logrus.WithFields(logrus.Fields{
 				"node":    node.name,
-				"elapsed": fmt.Sprint(elapsed),
+				"elapsed": prettyElapsed(elapsed),
 				"behind":  behind,
 			}).Error("Node block height became unhealthy")
 		}
@@ -130,9 +132,13 @@ func (node *Node) CheckHeight(config *HeightReportConfig, target uint64) {
 		if unrecovered {
 			logrus.WithFields(logrus.Fields{
 				"node":    node.name,
-				"elapsed": fmt.Sprint(elapsed),
+				"elapsed": prettyElapsed(elapsed),
 				"behind":  behind,
 			}).Error("Node block height not recovered yet")
 		}
 	}
+}
+
+func prettyElapsed(elapsed time.Duration) string {
+	return fmt.Sprint(elapsed.Truncate(time.Second))
 }

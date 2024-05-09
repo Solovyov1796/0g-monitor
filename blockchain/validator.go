@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/0glabs/0g-monitor/blockchain/contracts"
+	"github.com/Conflux-Chain/go-conflux-util/health"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/openweb3/web3go"
 	"github.com/pkg/errors"
@@ -16,7 +17,7 @@ type Validator struct {
 	staking *contracts.StakingCaller
 	name    string
 	address string
-	health  Health
+	health  health.TimedCounter
 }
 
 func MustNewValidator(client *web3go.Client, name, address string) *Validator {
@@ -50,7 +51,7 @@ func (validator Validator) String() string {
 	return validator.name
 }
 
-func (validator *Validator) Update(config *ErrorTolerantReportConfig) {
+func (validator *Validator) Update(config health.TimedCounterConfig) {
 	info, err := validator.staking.Validator(nil, validator.address)
 	if err != nil {
 		logrus.WithError(err).WithField("validator", validator.String()).Info("Failed to query validator info")
@@ -69,20 +70,20 @@ func (validator *Validator) Update(config *ErrorTolerantReportConfig) {
 
 		if unhealthy {
 			logrus.WithFields(logrus.Fields{
-				"elapsed":   fmt.Sprint(elapsed),
+				"elapsed":   prettyElapsed(elapsed),
 				"validator": validator.String(),
 			}).Error("Validator jailed")
 		}
 
 		if unrecovered {
 			logrus.WithFields(logrus.Fields{
-				"elapsed":   fmt.Sprint(elapsed),
+				"elapsed":   prettyElapsed(elapsed),
 				"validator": validator.String(),
 			}).Error("Validator jailed and not recovered yet")
 		}
 	} else if recovered, elapsed := validator.health.OnSuccess(config); recovered {
 		logrus.WithFields(logrus.Fields{
-			"elapsed":   fmt.Sprint(elapsed),
+			"elapsed":   prettyElapsed(elapsed),
 			"validator": validator.String(),
 		}).Warn("Validator unfailed now")
 	}

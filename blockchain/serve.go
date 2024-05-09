@@ -3,6 +3,7 @@ package blockchain
 import (
 	"time"
 
+	"github.com/Conflux-Chain/go-conflux-util/health"
 	"github.com/Conflux-Chain/go-conflux-util/viper"
 	"github.com/sirupsen/logrus"
 )
@@ -10,11 +11,11 @@ import (
 type Config struct {
 	Nodes                  map[string]string
 	Interval               time.Duration `default:"5s"`
-	AvailabilityReport     ErrorTolerantReportConfig
+	AvailabilityReport     health.TimedCounterConfig
 	NodeHeightReport       HeightReportConfig
-	BlockchainHeightReport ErrorTolerantReportConfig
+	BlockchainHeightReport health.TimedCounterConfig
 	Validators             map[string]string
-	ValidatorReport        ErrorTolerantReportConfig
+	ValidatorReport        health.TimedCounterConfig
 }
 
 func MustMonitorFromViper() {
@@ -62,7 +63,7 @@ func Monitor(config Config) {
 
 func monitorOnce(config *Config, nodes []*Node, validators []*Validator) {
 	for _, v := range nodes {
-		v.UpdateHeight(&config.AvailabilityReport)
+		v.UpdateHeight(config.AvailabilityReport)
 	}
 
 	max := FindMaxBlockHeight(nodes)
@@ -72,13 +73,13 @@ func monitorOnce(config *Config, nodes []*Node, validators []*Validator) {
 
 	logrus.WithField("height", max).Debug("Fullnode status report")
 
-	defaultBlockchainHeightHealth.Update(&config.BlockchainHeightReport, max)
+	defaultBlockchainHeightHealth.Update(config.BlockchainHeightReport, max)
 
 	for _, v := range nodes {
 		v.CheckHeight(&config.NodeHeightReport, max)
 	}
 
 	for _, v := range validators {
-		v.Update(&config.ValidatorReport)
+		v.Update(config.ValidatorReport)
 	}
 }

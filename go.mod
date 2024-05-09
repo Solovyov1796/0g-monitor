@@ -3,13 +3,12 @@ module github.com/0glabs/0g-monitor
 go 1.20
 
 require (
-	github.com/Conflux-Chain/go-conflux-util v0.2.1-0.20240507025502-1c09c8805ec2
+	github.com/Conflux-Chain/go-conflux-util v0.2.1-0.20240509025726-431e2875cd58
 	github.com/ethereum/go-ethereum v1.10.15
 	github.com/openweb3/web3go v0.2.7
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.0
-	github.com/stretchr/testify v1.7.0
 )
 
 require (
@@ -19,7 +18,6 @@ require (
 	github.com/btcsuite/btcd v0.21.0-beta // indirect
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set v1.8.0 // indirect
 	github.com/deepmap/oapi-codegen v1.8.2 // indirect
 	github.com/fatih/color v1.13.0 // indirect
@@ -51,7 +49,6 @@ require (
 	github.com/openweb3/go-rpc-provider v0.3.2 // indirect
 	github.com/openweb3/go-sdk-common v0.0.0-20220720074746-a7134e1d372c // indirect
 	github.com/pelletier/go-toml v1.9.4 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/tsdb v0.7.1 // indirect
 	github.com/rjeczalik/notify v0.9.1 // indirect
 	github.com/royeo/dingrobot v1.0.1-0.20191230075228-c90a788ca8fd // indirect
@@ -75,6 +72,5 @@ require (
 	gopkg.in/ini.v1 v1.66.2 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools v2.2.0+incompatible // indirect
 )

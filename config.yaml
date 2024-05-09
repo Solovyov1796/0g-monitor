@@ -39,15 +39,15 @@
 #   interval: 5s
 #   availabilityReport:
 #     threshold: 1m
-#     reminder: 5m
+#     remind: 5m
 #   nodeHeightReport:
-#     ErrorTolerantReportConfig:
+#     timedCounterConfig:
 #       threshold: 1m
-#       reminder: 5m
+#       remind: 5m
 #     maxGap: 30
 #   blockchainHeightReport:
 #     threshold: 1m
-#     reminder: 5m
+#     remind: 5m
 #   validators:
 #     # name -> bech32 val format address (prefixed with 0gvaloper)
 #     val0: 0gvaloper1hqhdtzuykase0umq5eyzx0u7rq03rjsn2qqwyc
@@ -55,4 +55,4 @@
 #     val2: 0gvaloper12q5dc47ptmdqey6xqck4z7uqtx7g9788cfw2va
 #   validatorReport:
 #     threshold: 1m
-#     reminder: 5m
+#     remind: 5m
