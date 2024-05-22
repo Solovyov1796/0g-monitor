@@ -33,10 +33,8 @@ github.com/Azure/go-autorest/logger v0.1.0/go.mod h1:oExouG+K6PryycPJfVSxi/koC6L
 github.com/Azure/go-autorest/tracing v0.5.0/go.mod h1:r/s2XiOKccPW3HrqB+W0TQzfbtp2fGCgRFtBroKn4Dk=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
-github.com/Conflux-Chain/go-conflux-util v0.2.1-0.20240509025726-431e2875cd58 h1:xfPRdBLiV9yQll3sP39CKhON+O1BKGijwZ8kolms56Q=
-github.com/Conflux-Chain/go-conflux-util v0.2.1-0.20240509025726-431e2875cd58/go.mod h1:za8Uv/zQzOmHC8l3P11WHDjtaJpAnueI5sT+F/7isas=
-github.com/Conflux-Chain/go-conflux-util v0.2.1-0.20240509082329-9ede8d9739ee h1:URr410hcryjP0Wx+1gSywZPIY5FOxUHj5BGO6MdWIIQ=
-github.com/Conflux-Chain/go-conflux-util v0.2.1-0.20240509082329-9ede8d9739ee/go.mod h1:za8Uv/zQzOmHC8l3P11WHDjtaJpAnueI5sT+F/7isas=
+github.com/Conflux-Chain/go-conflux-util v0.2.1 h1:iWYfcQ9ngenLpRi8sYb2x4mko2x2AOf214RuzOj2VLM=
+github.com/Conflux-Chain/go-conflux-util v0.2.1/go.mod h1:6JdsElKVTA3kxbflE2rhYO1hp+rPd9O7THCIN1z/v6c=
 github.com/DATA-DOG/go-sqlmock v1.3.3/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q5eFN3EC/SaM=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
 github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 h1:fLjPD/aNc3UIOA6tDi6QXUemppXK3P9BI7mr2hd6gx8=
@@ -397,8 +395,6 @@ github.com/retailnext/hllpp v1.0.1-0.20180308014038-101a6d2f8b52/go.mod h1:RDpi1
 github.com/rjeczalik/notify v0.9.1 h1:CLCKso/QK1snAlnhNR/CNvNiFU2saUtjV0bx3EwNeCE=
 github.com/rjeczalik/notify v0.9.1/go.mod h1:rKwnCoCGeuQnwBtTSPL9Dad03Vh2n40ePRrjvIXnJho=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
-github.com/royeo/dingrobot v1.0.1-0.20191230075228-c90a788ca8fd h1:YvxA3mges3/MbK3/tYEBprBeZhqSJOW82qAgHTiTBnM=
-github.com/royeo/dingrobot v1.0.1-0.20191230075228-c90a788ca8fd/go.mod h1:RqDM8E/hySCVwI2aUFRJAUGDcHHRnIhzNmbNG3bamQs=
 github.com/rs/cors v1.7.0 h1:+88SsELBHx5r+hZ8TCkggzSstaWNbDvThkVK8H6f9ik=
 github.com/rs/cors v1.7.0/go.mod h1:gFx+x8UowdsKA9AchylcLynDq+nNFfI8FkUZdN/jGCU=
 github.com/russross/blackfriday/v2 v2.0.1/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=

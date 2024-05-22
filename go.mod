@@ -3,7 +3,7 @@ module github.com/0glabs/0g-monitor
 go 1.20
 
 require (
-	github.com/Conflux-Chain/go-conflux-util v0.2.1-0.20240509082329-9ede8d9739ee
+	github.com/Conflux-Chain/go-conflux-util v0.2.1
 	github.com/ethereum/go-ethereum v1.10.15
 	github.com/openweb3/web3go v0.2.7
 	github.com/pkg/errors v0.9.1
@@ -51,7 +51,6 @@ require (
 	github.com/pelletier/go-toml v1.9.4 // indirect
 	github.com/prometheus/tsdb v0.7.1 // indirect
 	github.com/rjeczalik/notify v0.9.1 // indirect
-	github.com/royeo/dingrobot v1.0.1-0.20191230075228-c90a788ca8fd // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cast v1.4.1 // indirect
