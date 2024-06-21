@@ -94,3 +94,18 @@
 #   validatorReport:
 #     threshold: 1m
 #     remind: 5m
+# Storage Service Monitoring Configurations
+# storage:
+#   nodes:
+#     node0: http://ip0:5678
+#     node1: http://ip1:5678
+#   interval: 1800s
+#   storageNodeReport:
+#     threshold: 120m
+#     remind: 120m
+#   dbConfig:
+#     username: root
+#     password: root
+#     host: localhost
+#     port: 3306
+#     dbName: storage_service
