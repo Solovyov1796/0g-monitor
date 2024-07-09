@@ -99,7 +99,10 @@
 #   nodes:
 #     node0: http://ip0:5678
 #     node1: http://ip1:5678
-#   interval: 1800s
+#   kvNodes:
+#     node0: http://ip0:6789
+#     node1: http://ip1:6789
+#   interval: 600s
 #   storageNodeReport:
 #     threshold: 120m
 #     remind: 120m
@@ -109,3 +112,10 @@
 #     host: localhost
 #     port: 3306
 #     dbName: storage_service
+# da:
+#   daNodeReport:
+#     threshold: 120m
+#     remind: 120m
+#   daClientReport:
+#     threshold: 120m
+#     remind: 120m
