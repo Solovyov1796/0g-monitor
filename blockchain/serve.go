@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -9,7 +10,6 @@ import (
 	"github.com/Conflux-Chain/go-conflux-util/health"
 	"github.com/Conflux-Chain/go-conflux-util/viper"
 	"github.com/go-gota/gota/dataframe"
-	"github.com/openweb3/web3go"
 	"github.com/sirupsen/logrus"
 )
 
@@ -22,6 +22,7 @@ type Config struct {
 	Validators             map[string]string
 	ValidatorReport        health.TimedCounterConfig
 	PrivateKey             string
+	CosmosRPC              string `default:"https://cosmosrpc-test.0g.ai/"`
 }
 
 const ValidatorFile = "data/validator_rpcs.csv"
@@ -56,37 +57,38 @@ func Monitor(config Config) {
 		logrus.WithField("name", name).WithField("url", url).Debug("Start to monitor fullnode")
 		nodes = append(nodes, MustNewNode(name, url))
 	}
-	defer func() {
-		for _, v := range nodes {
-			defer v.Close()
-		}
-	}()
-
-	client := web3go.MustNewClient(BlockChainRpc)
 
 	var validators []*Validator
+	url, _ := url.Parse(config.CosmosRPC)
 	for name, address := range config.Validators {
 		logrus.WithField("name", name).WithField("address", address).Debug("Start to monitor validator")
-		validators = append(validators, MustNewValidator(client, name, address, false))
+		validators = append(validators, MustNewValidator(url, name, address, false))
 	}
 
 	// Read the file into a dataframe
 	df := dataframe.ReadCSV(f)
 	var userNodes []*Validator
+
 	for i := 0; i < df.Nrow(); i++ {
 		discordId := df.Subset(i).Col("discord_id").Elem(0).String()
+
 		validatorAddress := df.Subset(i).Col("validator_address").Elem(0).String()
 		rpc := df.Subset(i).Col("validator_rpc").Elem(0).String()
 		ips := strings.Split(rpc, ",")
 		for _, ip := range ips {
 			ip = strings.TrimSpace(ip)
 			logrus.WithField("discord_id", discordId).WithField("ip", ip).Debug("Start to monitor user validator node")
-			currNode := MustNewValidator(client, validatorAddress, ip, true)
+
+			currNode := MustNewValidator(url, validatorAddress, ip, true)
 			if currNode != nil {
 				userNodes = append(userNodes, currNode)
 			}
 		}
+
 	}
+
+	// Monitor once immediately
+	monitorOnce(&config, nodes, validators, userNodes)
 
 	// Monitor node status periodically
 	ticker := time.NewTicker(config.Interval)
