@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/0glabs/0g-storage-client/common/shard"
 	"github.com/0glabs/0g-storage-client/node"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
@@ -30,33 +31,64 @@ func init() {
 }
 
 func statFileDistribution(*cobra.Command, []string) {
-	files := mustStatRpc(func(client *node.ZgsClient, ctx context.Context) (*node.FileInfo, error) {
-		if len(root) == 0 {
-			return client.GetFileInfoByTxSeq(ctx, txSeq)
+	type ShardedFileInfo struct {
+		File  *node.FileInfo
+		Shard shard.ShardConfig
+	}
+
+	files := mustStatRpc(func(client *node.ZgsClient, ctx context.Context) (*ShardedFileInfo, error) {
+		var info ShardedFileInfo
+		var err error
+
+		if info.Shard, err = client.GetShardConfig(ctx); err != nil {
+			return nil, err
 		}
 
-		return client.GetFileInfo(ctx, common.HexToHash(root))
+		if len(root) == 0 {
+			info.File, err = client.GetFileInfoByTxSeq(ctx, txSeq)
+		} else {
+			info.File, err = client.GetFileInfo(ctx, common.HexToHash(root))
+		}
+
+		return &info, err
 	})
 
 	var rpcFailures int
 	fileDistribution := make(map[string]int)
+	uploadedDistribution := make(map[uint64]map[uint64]int)
 
 	for _, v := range files {
 		if v.Err != nil {
 			rpcFailures++
-		} else if v.Data == nil {
+		} else if v.Data.File == nil {
 			fileDistribution["Unsynced"]++
-		} else if v.Data.Finalized {
+		} else if v.Data.File.Finalized {
 			fileDistribution["Uploaded"]++
+
+			if m, ok := uploadedDistribution[v.Data.Shard.NumShard]; ok {
+				m[v.Data.Shard.ShardId]++
+			} else {
+				uploadedDistribution[v.Data.Shard.NumShard] = map[uint64]int{
+					v.Data.Shard.ShardId: 1,
+				}
+			}
 		} else {
 			fileDistribution["Synced"]++
 		}
 	}
 
-	fmt.Println()
-	fmt.Println("RPC Failures:", rpcFailures)
-	fmt.Println("File distribution:")
+	fmt.Println("\nRPC Failures:", rpcFailures)
+
+	fmt.Println("\nStatus distribution:")
 	for status, count := range fileDistribution {
 		fmt.Printf("\t%v: %v\n", status, count)
+	}
+
+	fmt.Println("\nUploaded distribution:")
+	for numShard, id2Counts := range uploadedDistribution {
+		fmt.Println("\tNum shard:", numShard)
+		for shardId, count := range id2Counts {
+			fmt.Printf("\t\tShard %v: %v\n", shardId, count)
+		}
 	}
 }
