@@ -2,7 +2,6 @@ package stat
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/0glabs/0g-monitor/storage"
@@ -52,16 +51,19 @@ func mustStatRpc[T any](statRpcFunc func(*node.ZgsClient, context.Context) (T, e
 	logrus.Info("Dailed to indexer")
 
 	// retrieve discovered nodes from indexer
-	ips, err := client.GetNodeLocations(context.Background())
+	shardedNodes, err := client.GetShardedNodes(context.Background())
 	if err != nil {
-		logrus.WithError(err).Fatal("Failed to retrieve node locations")
+		logrus.WithError(err).Fatal("Failed to retrieve sharded nodes")
 	}
-	logrus.WithField("ips", len(ips)).Info("Succeeded to retrieve node IP locations")
+	logrus.WithFields(logrus.Fields{
+		"trusted":    len(shardedNodes.Trusted),
+		"discovered": len(shardedNodes.Discovered),
+	}).Info("Succeeded to retrieve sharded nodes")
 
-	// retrieve shard configs in parallel
-	nodes := make([]string, 0, len(ips))
-	for ip := range ips {
-		nodes = append(nodes, fmt.Sprintf("http://%v:5678", ip))
+	// call rpc in parallel
+	nodes := make([]string, 0, len(shardedNodes.Discovered))
+	for _, v := range shardedNodes.Discovered {
+		nodes = append(nodes, v.URL)
 	}
 	logrus.Info("Begin to query shard configs in parallel")
 	result, err := storage.ParallelQueryRpc(context.Background(), nodes, statRpcFunc, serialOpt)
