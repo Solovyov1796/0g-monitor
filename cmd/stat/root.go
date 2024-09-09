@@ -65,11 +65,13 @@ func mustStatRpc[T any](statRpcFunc func(*node.ZgsClient, context.Context) (T, e
 	for _, v := range shardedNodes.Discovered {
 		nodes = append(nodes, v.URL)
 	}
-	logrus.Info("Begin to query shard configs in parallel")
+	logrus.Info("Begin to query RPC in parallel")
+	start := time.Now()
 	result, err := storage.ParallelQueryRpc(context.Background(), nodes, statRpcFunc, serialOpt)
 	if err != nil {
 		logrus.WithError(err).Fatal("Failed to query shard configs in parallel")
 	}
+	logrus.WithField("elapsed", time.Since(start)).Info("Completed to query RPC in parallel")
 
 	return result
 }
