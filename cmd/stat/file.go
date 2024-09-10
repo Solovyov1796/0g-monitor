@@ -55,7 +55,7 @@ func statFileDistribution(*cobra.Command, []string) {
 
 	var rpcFailures int
 	fileDistribution := make(map[string]int)
-	uploadedDistribution := make(map[uint64]map[uint64]int)
+	uploadedShardCounter := newShardCounter()
 
 	for _, v := range files {
 		if v.Err != nil {
@@ -64,14 +64,7 @@ func statFileDistribution(*cobra.Command, []string) {
 			fileDistribution["Unsynced"]++
 		} else if v.Data.File.Finalized {
 			fileDistribution["Uploaded"]++
-
-			if m, ok := uploadedDistribution[v.Data.Shard.NumShard]; ok {
-				m[v.Data.Shard.ShardId]++
-			} else {
-				uploadedDistribution[v.Data.Shard.NumShard] = map[uint64]int{
-					v.Data.Shard.ShardId: 1,
-				}
-			}
+			uploadedShardCounter.insert(v.Data.Shard)
 		} else {
 			fileDistribution["Synced"]++
 		}
@@ -84,11 +77,5 @@ func statFileDistribution(*cobra.Command, []string) {
 		fmt.Printf("\t%v: %v\n", status, count)
 	}
 
-	fmt.Println("\nUploaded distribution:")
-	for numShard, id2Counts := range uploadedDistribution {
-		fmt.Println("\tNum shard:", numShard)
-		for shardId, count := range id2Counts {
-			fmt.Printf("\t\tShard %v: %v\n", shardId, count)
-		}
-	}
+	uploadedShardCounter.print("\nUploaded shard distribution")
 }
