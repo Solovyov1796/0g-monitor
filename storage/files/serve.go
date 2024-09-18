@@ -33,6 +33,7 @@ type Config struct {
 	Indexer                string
 	Fullnode               string
 	DiscoveryPeersInterval time.Duration `default:"10m"`
+	MinPeers               int           `default:"500"`
 	Routines               int           `default:"500"`
 	RpcBatch               uint64        `default:"200"`
 	Mysql                  mysql.Config
@@ -114,6 +115,13 @@ func collect(config Config, discovery *Discovery, sampler *Sampler, store *Store
 	txSeqBuf := make([]uint64, config.RpcBatch)
 
 	for {
+		peers, shards := discovery.GetPeers()
+		if numPeers := len(peers); numPeers < config.MinPeers {
+			logrus.WithField("count", numPeers).WithField("min", config.MinPeers).Info("Not enough peers discovered to statistic file status")
+			time.Sleep(time.Minute)
+			continue
+		}
+
 		maxTxSeq := sampler.maxTxSeq.Load()
 
 		// start from 0 again
@@ -130,8 +138,6 @@ func collect(config Config, discovery *Discovery, sampler *Sampler, store *Store
 		rpcFunc := func(client *node.ZgsClient, ctx context.Context) (*batchGetFileInfoResult, error) {
 			return batchGetFileInfo(client.Provider, ctx, txSeqBuf[:batchSize]...)
 		}
-
-		peers, shards := discovery.GetPeers()
 
 		logger.WithFields(logrus.Fields{
 			"start": next,
