@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/0glabs/0g-monitor/utils"
 	"github.com/Conflux-Chain/go-conflux-util/metrics"
 	"github.com/Conflux-Chain/go-conflux-util/viper"
 	"github.com/sirupsen/logrus"
 )
-
-const ValidatorFile = "data/validator_rpcs.csv"
 
 var (
 	blockTxCntRecord       map[uint64]int
@@ -53,44 +53,125 @@ func Monitor(config Config) {
 	blockFailedTxCntRecord = make(map[uint64]int, config.BlockTxCntLimit)
 
 	// Monitor once immediately
-	monitorOnce(&config, nodes, validators, consensus)
+	monitorAllOnce(&config, nodes, validators, consensus)
 
 	// Monitor node status periodically
-	ticker := time.NewTicker(config.Interval)
+	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
+	monitorValidatorCnt := 0
+	monitorNodeCnt := 0
+	monitorMempoolCnt := 0
 	for range ticker.C {
-		monitorOnce(&config, nodes, validators, consensus)
+		monitorValidatorCnt++
+		monitorNodeCnt++
+		monitorMempoolCnt++
+
+		if monitorNodeCnt%config.NodeInterval == 0 {
+			monitorNodeOnce(&config, nodes, consensus)
+			monitorNodeCnt = 0
+		}
+
+		if monitorValidatorCnt%config.ValidatorInterval == 0 {
+			monitorValidatorOnce(&config, validators)
+			monitorValidatorCnt = 0
+		}
+
+		if monitorMempoolCnt%config.MempoolInterval == 0 {
+			monitorMempoolOnce(&config, consensus)
+			monitorMempoolCnt = 0
+		}
 	}
 }
 
 func createMetricsForChain() {
-	metrics.GetOrRegisterHistogram(validatorActiveCountPattern).Update(0)
+	metrics.GetOrRegisterGauge(validatorActiveCountPattern).Update(0)
 	metrics.GetOrRegisterGauge(validatorActiveCountUnhealthPattern).Update(0)
 
 	metrics.GetOrRegisterGauge(failedTxCountUnhealthPattern).Update(0)
-	metrics.GetOrRegisterHistogram(failedTxCountPattern).Update(0)
+	metrics.GetOrRegisterGauge(failedTxCountPattern).Update(0)
 
-	metrics.GetOrRegisterHistogram(blockTxCountPattern).Update(0)
+	metrics.GetOrRegisterGauge(blockTxCountPattern).Update(0)
 }
 
-func monitorOnce(config *Config, nodes []*Node, validators []*Validator, consensus *Consensus) {
+func monitorAllOnce(config *Config, nodes []*Node, validators []*Validator, consensus *Consensus) {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		if logrus.IsLevelEnabled(logrus.DebugLevel) {
+			logrus.WithFields(logrus.Fields{
+				"costed": utils.PrettyElapsed(elapsed),
+			}).Debug("executed monitorAllOnce:")
+		}
+	}()
+
+	var allTasks sync.WaitGroup
+
+	allTasks.Add(1)
+	go utils.SafeStartGoroutine(func() {
+		defer allTasks.Done()
+		monitorNodeOnce(config, nodes, consensus)
+	})
+
+	allTasks.Add(1)
+	go utils.SafeStartGoroutine(func() {
+		defer allTasks.Done()
+		monitorValidatorOnce(config, validators)
+	})
+
+	allTasks.Add(1)
+	go utils.SafeStartGoroutine(func() {
+		defer allTasks.Done()
+		monitorMempoolOnce(config, consensus)
+	})
+
+	allTasks.Wait()
+}
+
+func monitorNodeOnce(config *Config, nodes []*Node, consensus *Consensus) {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		if logrus.IsLevelEnabled(logrus.DebugLevel) {
+			logrus.WithFields(logrus.Fields{
+				"costed": utils.PrettyElapsed(elapsed),
+			}).Debug("executed monitorNodeOnce:")
+		}
+	}()
+
 	blockSwitched := false
 	var blockTxInfo *BlockTxInfo
-	for _, v := range nodes {
-		v.UpdateHeight(config.AvailabilityReport)
-		// generate block tx info for new block
-		if _, existed := blockTxCntRecord[v.currentBlockInfo.Height]; !existed {
-			blockTxCntRecord[v.currentBlockInfo.Height] = len(v.currentBlockInfo.TxHashes)
-			blockTxInfo = &BlockTxInfo{
-				Height:   v.currentBlockInfo.Height,
-				TxHashes: v.currentBlockInfo.TxHashes,
-			}
 
-			if !blockSwitched {
-				blockSwitched = true
-			}
+	if len(nodes) > 0 {
+		swg := utils.NewSizedWaitGroup(len(nodes))
+
+		for i := range nodes {
+			swg.Add()
+			go func(v *Node) {
+				defer swg.Done()
+				v.UpdateHeight(config.AvailabilityReport)
+				// generate block tx info for new block
+				blockFailedTxCntLock.RLock()
+				if _, existed := blockTxCntRecord[v.currentBlockInfo.Height]; !existed {
+					blockFailedTxCntLock.RUnlock()
+					if blockFailedTxCntLock.TryLock() {
+						defer blockFailedTxCntLock.Unlock()
+						blockTxCntRecord[v.currentBlockInfo.Height] = len(v.currentBlockInfo.TxHashes)
+						blockTxInfo = &BlockTxInfo{
+							Height:   v.currentBlockInfo.Height,
+							TxHashes: v.currentBlockInfo.TxHashes,
+						}
+
+						if !blockSwitched {
+							blockSwitched = true
+						}
+					}
+				} else {
+					blockFailedTxCntLock.RUnlock()
+				}
+			}(nodes[i])
 		}
+		swg.Wait()
 	}
 
 	max := FindMaxBlockHeight(nodes)
@@ -117,11 +198,6 @@ func monitorOnce(config *Config, nodes []*Node, validators []*Validator, consens
 
 		monitorBlockValidator(config, consensus, blockTxInfo.Height)
 	}
-
-	// update validator status
-	monitorValidator(config, validators)
-
-	monitorMempool(config, consensus)
 }
 
 func countFailedTx(statusMap map[string]bool) int {
@@ -137,12 +213,12 @@ func countFailedTx(statusMap map[string]bool) int {
 func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 	if txInfo != nil {
 		blockTxCnt := len(txInfo.TxHashes)
-		metrics.GetOrRegisterHistogram(blockTxCountPattern).Update(int64(blockTxCnt))
+		metrics.GetOrRegisterGauge(blockTxCountPattern).Update(int64(blockTxCnt))
 
 		logrus.Debug(fmt.Sprintf("Block (%d) tx count: %d", txInfo.Height, blockTxCnt))
 
 		if blockTxCnt > 0 {
-			index := int(time.Now().UnixNano() % int64(len(nodes)))
+			index := int(time.Now().Unix() % int64(len(nodes)))
 			statusMap, err := nodes[index].FetchBlockReceiptStatus(config.NodeHeightReport.TimedCounterConfig, txInfo.Height)
 			if err != nil {
 				return
@@ -157,6 +233,8 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 				break
 			}
 			targetHeight := txInfo.Height - uint64(i)
+			blockFailedTxCntLock.RLock()
+			defer blockFailedTxCntLock.RUnlock()
 			if cnt, existed := blockTxCntRecord[targetHeight]; existed {
 				totalTxCnt += cnt
 				failedTxCnt += blockFailedTxCntRecord[targetHeight]
@@ -165,7 +243,7 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 			}
 		}
 
-		metrics.GetOrRegisterHistogram(failedTxCountPattern).Update(int64(failedTxCnt))
+		metrics.GetOrRegisterGauge(failedTxCountPattern).Update(int64(failedTxCnt))
 		percentage := float64(failedTxCnt*100) / float64(totalTxCnt)
 		if failedTxCnt > 0 && percentage-float64(config.FailedTxCntAlarmThreshold) > 0 {
 			metrics.GetOrRegisterGauge(failedTxCountUnhealthPattern).Update(1)
@@ -176,6 +254,9 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 		if len(blockTxCntRecord) > config.BlockTxCntLimit {
 			if uint64(config.BlockTxCntLimit) <= nodes[0].currentBlockInfo.Height {
 				startHeight := nodes[0].currentBlockInfo.Height - uint64(config.BlockTxCntLimit)
+
+				blockFailedTxCntLock.Lock()
+				defer blockFailedTxCntLock.Unlock()
 				for k := range blockTxCntRecord {
 					if k < startHeight {
 						delete(blockTxCntRecord, k)
@@ -185,21 +266,41 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 			}
 		}
 	} else {
-		metrics.GetOrRegisterHistogram(blockTxCountPattern).Update(0)
+		metrics.GetOrRegisterGauge(blockTxCountPattern).Update(0)
 	}
 }
 
-func monitorValidator(config *Config, validators []*Validator) {
-	jailedCnt := 0
-	for _, v := range validators {
-		v.Update(config.ValidatorReport)
-		if v.jailed {
-			jailedCnt++
+func monitorValidatorOnce(config *Config, validators []*Validator) {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		if logrus.IsLevelEnabled(logrus.DebugLevel) {
+			logrus.WithFields(logrus.Fields{
+				"costed": utils.PrettyElapsed(elapsed),
+			}).Debug("executed monitorValidatorOnce:")
 		}
+	}()
+
+	jailedCnt := int32(0)
+
+	if len(validators) > 0 {
+		swg := utils.NewSizedWaitGroup(len(validators))
+
+		for i := range validators {
+			swg.Add()
+			go func(v *Validator) {
+				defer swg.Done()
+				v.Update(config.ValidatorReport)
+				if v.jailed {
+					atomic.AddInt32(&jailedCnt, 1)
+				}
+			}(validators[i])
+		}
+		swg.Wait()
 	}
 
-	activeValidatorCount := len(validators) - jailedCnt
-	metrics.GetOrRegisterHistogram(validatorActiveCountPattern).Update(int64(activeValidatorCount))
+	activeValidatorCount := len(validators) - int(jailedCnt)
+	metrics.GetOrRegisterGauge(validatorActiveCountPattern).Update(int64(activeValidatorCount))
 	percentage := 100 * float64(activeValidatorCount) / float64(len(validators))
 	if percentage-float64(67) >= 0 {
 		metrics.GetOrRegisterGauge(validatorActiveCountUnhealthPattern).Update(0)
@@ -210,10 +311,20 @@ func monitorValidator(config *Config, validators []*Validator) {
 	logrus.WithField("active", activeValidatorCount).WithField("jailed", jailedCnt).Debug("Validators status report")
 }
 
-func monitorMempool(config *Config, consensus *Consensus) {
+func monitorMempoolOnce(config *Config, consensus *Consensus) {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		if logrus.IsLevelEnabled(logrus.DebugLevel) {
+			logrus.WithFields(logrus.Fields{
+				"costed": utils.PrettyElapsed(elapsed),
+			}).Debug("executed monitorMempoolOnce:")
+		}
+	}()
+
 	unconfirmedTxCnt := consensus.UpdateUncommitTxCnt(config.MempoolReport.TimedCounterConfig)
 
-	metrics.GetOrRegisterHistogram(mempoolUncommitTxCntPattern).Update(int64(unconfirmedTxCnt))
+	metrics.GetOrRegisterGauge(mempoolUncommitTxCntPattern).Update(int64(unconfirmedTxCnt))
 	percentage := float64(unconfirmedTxCnt*100) / float64(config.MempoolReport.PoolSize)
 	metrics.GetOrRegisterGauge(mempoolLoadPattern).Update(int64(percentage))
 	logrus.Debug("Mempool status report: unconfirmed tx count = ", unconfirmedTxCnt, ", percentage = ", percentage)
@@ -227,7 +338,7 @@ func monitorMempool(config *Config, consensus *Consensus) {
 func monitorBlockValidator(config *Config, consensus *Consensus, blockHeight uint64) {
 	blkValidatorCnt := consensus.GetBlockValidatorCnt(config.MempoolReport.TimedCounterConfig, blockHeight)
 	logrus.Debug(fmt.Sprintf("count of validator who signed block %d = %d", blockHeight, blkValidatorCnt))
-	metrics.GetOrRegisterHistogram(blockValidatorCountPattern).Update(int64(blkValidatorCnt))
+	metrics.GetOrRegisterGauge(blockValidatorCountPattern).Update(int64(blkValidatorCnt))
 }
 
 func FindMaxBlockHeight(nodes []*Node) uint64 {

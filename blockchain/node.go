@@ -46,12 +46,12 @@ func MustNewNode(name, urlstr string) *Node {
 }
 
 func createMetricsForNode(name string) {
-	metrics.GetOrRegisterHistogram(blockHeightBehindPattern, name).Update(0)
+	metrics.GetOrRegisterGauge(blockHeightBehindPattern, name).Update(0)
 	metrics.GetOrRegisterGauge(blockHeightUnhealthPattern, name).Update(0)
 
 	metrics.GetOrRegisterGauge(chainForkPattern, name).Update(0)
 
-	metrics.GetOrRegisterHistogram(blockCollatedGapPattern, name).Update(0)
+	metrics.GetOrRegisterGauge(blockCollatedGapPattern, name).Update(0)
 	metrics.GetOrRegisterGauge(blockCollatedGapUnhealthPattern, name).Update(0)
 
 	metrics.GetOrRegisterHistogram(nodeEthRpcLatencyPattern, name).Update(0)
@@ -59,7 +59,7 @@ func createMetricsForNode(name string) {
 }
 
 func (node *Node) UpdateHeight(config AvailabilityReport) {
-	var info BlockInfo
+	var info *BlockInfo
 	executeRequest(
 		func() error {
 			var err error
@@ -80,10 +80,21 @@ func (node *Node) UpdateHeight(config AvailabilityReport) {
 
 			if node.currentBlockInfo.Height != info.Height {
 				latest := node.lastBlockGap
-				node.lastBlockGap = info.Timestamp - node.currentBlockInfo.Timestamp
+				deltaBlockHeight := info.Height - node.currentBlockInfo.Height
+				deltaTime := info.Timestamp - node.currentBlockInfo.Timestamp
+				node.lastBlockGap = deltaTime / deltaBlockHeight
 
 				if latest > 0 { // skip first report
-					metrics.GetOrRegisterHistogram(blockCollatedGapPattern, node.name).Update(int64(node.lastBlockGap * uint64(time.Second)))
+					if deltaBlockHeight > 1 {
+						logrus.WithFields(logrus.Fields{
+							"node":    node.name,
+							"last":    node.currentBlockInfo.Height,
+							"current": info.Height,
+							"gap":     node.lastBlockGap,
+						}).Warn("Node block collated gap with more than 1 block")
+					}
+
+					metrics.GetOrRegisterGauge(blockCollatedGapPattern, node.name).Update(int64(node.lastBlockGap))
 
 					if node.lastBlockGap > config.MaxGap {
 						unhealthy, unrecovered, elapsed := node.blockGapHealth.OnFailure(config.TimedCounterConfig)
@@ -177,7 +188,7 @@ func (node *Node) CheckHeight(config *HeightReportConfig, target uint64) {
 		behind = target - node.currentBlockInfo.Height
 	}
 
-	metrics.GetOrRegisterHistogram(blockHeightBehindPattern, node.name).Update(int64(behind))
+	metrics.GetOrRegisterGauge(blockHeightBehindPattern, node.name).Update(int64(behind))
 	if behind <= config.MaxGap {
 		metrics.GetOrRegisterGauge(blockHeightUnhealthPattern, node.name).Update(0)
 
