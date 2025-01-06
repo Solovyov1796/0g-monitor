@@ -65,7 +65,7 @@ func (node *Node) UpdateHeight(config AvailabilityReport) {
 			var err error
 			info, err = EthGetLatestBlockInfo(node.url)
 			if err != nil {
-				logrus.WithError(err).WithField("node", node.name).Debug("Failed to query block number")
+				logrus.WithError(err).WithField("node", node.name).Error("Failed to query block number")
 				return err
 			}
 
@@ -91,7 +91,7 @@ func (node *Node) UpdateHeight(config AvailabilityReport) {
 							"last":    node.currentBlockInfo.Height,
 							"current": info.Height,
 							"gap":     node.lastBlockGap,
-						}).Warn("Node block collated gap with more than 1 block")
+						}).Info("Node block collated gap with more than 1 block")
 					}
 
 					metrics.GetOrRegisterGauge(blockCollatedGapPattern, node.name).Update(int64(node.lastBlockGap))
@@ -190,6 +190,14 @@ func (node *Node) CheckHeight(config *HeightReportConfig, target uint64) {
 
 	metrics.GetOrRegisterGauge(blockHeightBehindPattern, node.name).Update(int64(behind))
 	if behind <= config.MaxGap {
+		if behind > 1 {
+			logrus.WithFields(logrus.Fields{
+				"node":   node.name,
+				"height": node.currentBlockInfo.Height,
+				"target": target,
+				"behind": behind,
+			}).Info("Node block height is behind")
+		}
 		metrics.GetOrRegisterGauge(blockHeightUnhealthPattern, node.name).Update(0)
 
 		if recovered, elapsed := node.heightHealth.OnSuccess(config.TimedCounterConfig); recovered {
@@ -251,7 +259,7 @@ func (node *Node) FetchTxReceiptStatus(config health.TimedCounterConfig, txHash 
 			return nil
 		},
 		func(err error, unhealthy, unrecovered bool, elapsed time.Duration) {
-			logrus.WithError(err).WithField("node", node.name).Debug("Failed to query tx receipt status")
+			logrus.WithError(err).WithField("node", node.name).Info("Failed to query tx receipt status")
 
 			node.ethRpcError = err.Error()
 
@@ -311,7 +319,7 @@ func (node *Node) FetchBlockReceiptStatus(config health.TimedCounterConfig, heig
 			return nil
 		},
 		func(err error, unhealthy, unrecovered bool, elapsed time.Duration) {
-			logrus.WithError(err).WithField("node", node.name).Debug("Failed to query tx receipt status")
+			logrus.WithError(err).WithField("node", node.name).Info("Failed to query tx receipt status")
 
 			node.ethRpcError = err.Error()
 

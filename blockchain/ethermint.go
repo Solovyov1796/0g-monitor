@@ -27,7 +27,6 @@ func getHttpClient(url string) *resty.Client {
 		return c
 	} else {
 		ethClientLock.RUnlock()
-		println(url, "lock")
 		ethClientLock.Lock()
 		defer ethClientLock.Unlock()
 		transport := &http.Transport{
@@ -183,7 +182,7 @@ func EthFetchBlockReceiptStatus(url string, height uint64) (map[string]bool, err
 	result, ok := respBody["result"].([]interface{})
 	if !ok {
 		println(fmt.Sprintf("%v", respBody))
-		panic("invalid response of ethereum rpc eth_getBlockReceipts")
+		return nil, fmt.Errorf("invalid response of ethereum rpc eth_getBlockReceipts")
 	}
 
 	statusMap := make(map[string]bool, len(result))

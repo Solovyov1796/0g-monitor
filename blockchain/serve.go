@@ -218,13 +218,41 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 		logrus.Debug(fmt.Sprintf("Block (%d) tx count: %d", txInfo.Height, blockTxCnt))
 
 		if blockTxCnt > 0 {
-			index := int(time.Now().Unix() % int64(len(nodes)))
-			statusMap, err := nodes[index].FetchBlockReceiptStatus(config.NodeHeightReport.TimedCounterConfig, txInfo.Height)
-			if err != nil {
-				return
+			rec := make(map[int]bool, len(nodes))
+			index := int(time.Now().UnixMilli() % int64(len(nodes)))
+			for len(rec) < len(nodes) {
+				nodeIndex := index % len(nodes)
+				if _, exists := rec[index]; !exists {
+					if nodes[nodeIndex].currentBlockInfo.Height == txInfo.Height {
+						rec[index] = true
+						statusMap, err := nodes[nodeIndex].FetchBlockReceiptStatus(config.NodeHeightReport.TimedCounterConfig, txInfo.Height)
+						if err != nil {
+							logrus.WithError(err).
+								WithField("node_height", nodes[nodeIndex].currentBlockInfo.Height).
+								WithField("height", txInfo.Height).
+								WithField("nodeIndex", nodeIndex).
+								Info("Failed to fetch block receipt status")
+						} else {
+							blockFailedTxCntRecord[txInfo.Height] = countFailedTx(statusMap)
+							break
+						}
+					} else {
+						logrus.WithFields(logrus.Fields{
+							"height":    nodes[nodeIndex].currentBlockInfo.Height,
+							"target":    txInfo.Height,
+							"nodeIndex": nodeIndex,
+						}).Info("Skip node because of block height not match")
+						index++
+					}
+				} else {
+					index++
+				}
 			}
 
-			blockFailedTxCntRecord[txInfo.Height] = countFailedTx(statusMap)
+			if _, existed := blockFailedTxCntRecord[txInfo.Height]; !existed {
+				logrus.WithField("height", txInfo.Height).Info("Failed to fetch block receipt status for this height, set to 0")
+				blockFailedTxCntRecord[txInfo.Height] = 0
+			}
 		}
 
 		totalTxCnt, failedTxCnt := 0, 0
