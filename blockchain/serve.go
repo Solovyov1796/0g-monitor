@@ -152,22 +152,21 @@ func monitorNodeOnce(config *Config, nodes []*Node, consensus *Consensus) {
 				v.UpdateHeight(config.AvailabilityReport)
 				// generate block tx info for new block
 				blockFailedTxCntLock.RLock()
-				if _, existed := blockTxCntRecord[v.currentBlockInfo.Height]; !existed {
-					blockFailedTxCntLock.RUnlock()
-					if blockFailedTxCntLock.TryLock() {
-						defer blockFailedTxCntLock.Unlock()
-						blockTxCntRecord[v.currentBlockInfo.Height] = len(v.currentBlockInfo.TxHashes)
-						blockTxInfo = &BlockTxInfo{
-							Height:   v.currentBlockInfo.Height,
-							TxHashes: v.currentBlockInfo.TxHashes,
-						}
+				_, existed := blockTxCntRecord[v.currentBlockInfo.Height]
+				blockFailedTxCntLock.RUnlock()
+				if !existed {
+					blockFailedTxCntLock.Lock()
+					blockTxCntRecord[v.currentBlockInfo.Height] = len(v.currentBlockInfo.TxHashes)
+					blockFailedTxCntLock.Unlock()
 
-						if !blockSwitched {
-							blockSwitched = true
-						}
+					blockTxInfo = &BlockTxInfo{
+						Height:   v.currentBlockInfo.Height,
+						TxHashes: v.currentBlockInfo.TxHashes,
 					}
-				} else {
-					blockFailedTxCntLock.RUnlock()
+
+					if !blockSwitched {
+						blockSwitched = true
+					}
 				}
 			}(nodes[i])
 		}
@@ -233,7 +232,9 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 								WithField("nodeIndex", nodeIndex).
 								Info("Failed to fetch block receipt status")
 						} else {
+							blockFailedTxCntLock.Lock()
 							blockFailedTxCntRecord[txInfo.Height] = countFailedTx(statusMap)
+							blockFailedTxCntLock.Unlock()
 							break
 						}
 					} else {
@@ -248,10 +249,14 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 					index++
 				}
 			}
-
-			if _, existed := blockFailedTxCntRecord[txInfo.Height]; !existed {
+			blockFailedTxCntLock.RLock()
+			_, existed := blockFailedTxCntRecord[txInfo.Height]
+			blockFailedTxCntLock.RUnlock()
+			if !existed {
 				logrus.WithField("height", txInfo.Height).Info("Failed to fetch block receipt status for this height, set to 0")
+				blockFailedTxCntLock.Lock()
 				blockFailedTxCntRecord[txInfo.Height] = 0
+				blockFailedTxCntLock.Unlock()
 			}
 		}
 
@@ -262,10 +267,14 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 			}
 			targetHeight := txInfo.Height - uint64(i)
 			blockFailedTxCntLock.RLock()
-			defer blockFailedTxCntLock.RUnlock()
-			if cnt, existed := blockTxCntRecord[targetHeight]; existed {
+			cnt, existed := blockTxCntRecord[targetHeight]
+			failedCnt, ok := blockFailedTxCntRecord[targetHeight]
+			blockFailedTxCntLock.RUnlock()
+			if existed {
 				totalTxCnt += cnt
-				failedTxCnt += blockFailedTxCntRecord[targetHeight]
+				if ok {
+					failedTxCnt += failedCnt
+				}
 			} else {
 				break
 			}
@@ -279,18 +288,22 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 			metrics.GetOrRegisterGauge(failedTxCountUnhealthPattern).Update(0)
 		}
 
-		if len(blockTxCntRecord) > config.BlockTxCntLimit {
+		blockFailedTxCntLock.RLock()
+		recordCnt := len(blockTxCntRecord)
+		blockFailedTxCntLock.RUnlock()
+
+		if recordCnt > config.BlockTxCntLimit {
 			if uint64(config.BlockTxCntLimit) <= nodes[0].currentBlockInfo.Height {
 				startHeight := nodes[0].currentBlockInfo.Height - uint64(config.BlockTxCntLimit)
 
 				blockFailedTxCntLock.Lock()
-				defer blockFailedTxCntLock.Unlock()
 				for k := range blockTxCntRecord {
 					if k < startHeight {
 						delete(blockTxCntRecord, k)
 						delete(blockFailedTxCntRecord, k)
 					}
 				}
+				blockFailedTxCntLock.Unlock()
 			}
 		}
 	} else {
