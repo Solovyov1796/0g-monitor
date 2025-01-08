@@ -149,7 +149,10 @@ func monitorNodeOnce(config *Config, nodes []*Node, consensus *Consensus) {
 			swg.Add()
 			go func(v *Node) {
 				defer swg.Done()
+				now := time.Now()
 				v.UpdateHeight(config.AvailabilityReport)
+				println("PPP> ", v.name, " UpdateHeight-1 costed: ", time.Since(now).String())
+				now = time.Now()
 				// generate block tx info for new block
 				blockFailedTxCntLock.RLock()
 				_, existed := blockTxCntRecord[v.currentBlockInfo.Height]
@@ -168,6 +171,7 @@ func monitorNodeOnce(config *Config, nodes []*Node, consensus *Consensus) {
 						blockSwitched = true
 					}
 				}
+				println("PPP> ", v.name, " UpdateHeight-2 costed: ", time.Since(now).String())
 			}(nodes[i])
 		}
 		swg.Wait()
@@ -266,7 +270,7 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 				blockFailedTxCntLock.Unlock()
 			}
 		}
-		println("PPP> monitorNodeOnce-5-1 costed: ", time.Since(now).String())
+		println("PPP> monitorNodeOnce-4-1 costed: ", time.Since(now).String())
 		now = time.Now()
 
 		totalTxCnt, failedTxCnt := 0, 0
@@ -296,7 +300,7 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 		} else {
 			metrics.GetOrRegisterGauge(failedTxCountUnhealthPattern).Update(0)
 		}
-		println("PPP> monitorNodeOnce-5-2 costed: ", time.Since(now).String())
+		println("PPP> monitorNodeOnce-4-2 costed: ", time.Since(now).String())
 		now = time.Now()
 
 		blockFailedTxCntLock.RLock()
@@ -318,7 +322,7 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 			}
 		}
 
-		println("PPP> monitorNodeOnce-5-3 costed: ", time.Since(now).String())
+		println("PPP> monitorNodeOnce-4-3 costed: ", time.Since(now).String())
 	} else {
 		metrics.GetOrRegisterGauge(blockTxCountPattern).Update(0)
 	}

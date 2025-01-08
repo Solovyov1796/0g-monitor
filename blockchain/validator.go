@@ -64,12 +64,14 @@ func (validator Validator) String() string {
 func (validator *Validator) Update(config health.TimedCounterConfig) {
 	err := executeRequest(
 		func() error {
+			start := time.Now()
 			jailed, err := IsValidatorJailed(validator.url)
+			println("PPP> Validator-Update-IsValidatorJailed costed: ", time.Since(start).String())
+
 			if err != nil {
 				logrus.WithError(err).WithField("validator", validator.String()).Error("Failed to query validator info")
 				return err
 			}
-
 			validator.jailed = jailed
 
 			return nil
