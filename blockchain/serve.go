@@ -69,23 +69,17 @@ func Monitor(config Config) {
 		monitorMempoolCnt++
 
 		if monitorNodeCnt%config.NodeInterval == 0 {
-			go utils.SafeStartGoroutine(func() {
-				monitorNodeOnce(&config, nodes, consensus)
-			})
+			monitorNodeOnce(&config, nodes, consensus)
 			monitorNodeCnt = 0
 		}
 
 		if monitorValidatorCnt%config.ValidatorInterval == 0 {
-			go utils.SafeStartGoroutine(func() {
-				monitorValidatorOnce(&config, validators)
-			})
+			monitorValidatorOnce(&config, validators)
 			monitorValidatorCnt = 0
 		}
 
 		if monitorMempoolCnt%config.MempoolInterval == 0 {
-			go utils.SafeStartGoroutine(func() {
-				monitorMempoolOnce(&config, consensus)
-			})
+			monitorMempoolOnce(&config, consensus)
 			monitorMempoolCnt = 0
 		}
 	}
@@ -233,7 +227,7 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 		if blockTxCnt > 0 {
 			rec := make(map[int]bool, len(nodes))
 			index := int(time.Now().UnixMilli() % int64(len(nodes)))
-			for len(rec) < len(nodes) {
+			for i := 0; i < len(nodes); i++ {
 				nodeIndex := index % len(nodes)
 				if _, exists := rec[index]; !exists {
 					if nodes[nodeIndex].currentBlockInfo.Height == txInfo.Height {
@@ -257,11 +251,10 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 							"target":    txInfo.Height,
 							"nodeIndex": nodeIndex,
 						}).Info("Skip node because of block height not match")
-						index++
 					}
-				} else {
-					index++
+					i++
 				}
+				index++
 			}
 			blockFailedTxCntLock.RLock()
 			_, existed := blockFailedTxCntRecord[txInfo.Height]
