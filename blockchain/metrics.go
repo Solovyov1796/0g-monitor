@@ -20,8 +20,8 @@ const (
 	nodeEthRpcLatencyPattern  = "monitor/blockchain/rpc/ethermint/latency/%v"
 	nodeEthRpcUnhealthPattern = "monitor/blockchain/rpc/ethermint/unhealth/%v"
 	// cosmos rpc
-	nodeCosmosRpcLatencyPattern  = "monitor/blockchain/rpc/cosmos/latency/%v"
-	nodeCosmosRpcUnhealthPattern = "monitor/blockchain/rpc/cosmos/unhealth/%v"
+	nodeCosmosRpcLatencyPattern  = "monitor/blockchain/rpc/cosmos/latency"
+	nodeCosmosRpcUnhealthPattern = "monitor/blockchain/rpc/cosmos/unhealth"
 	// cometbft rpc
 	nodeCometbftRpcLatencyPattern  = "monitor/blockchain/rpc/cometbft/latency/%v"
 	nodeCometbftRpcUnhealthPattern = "monitor/blockchain/rpc/cometbft/unhealth/%v"

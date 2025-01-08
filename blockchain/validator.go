@@ -46,9 +46,6 @@ func NewValidator(url *url.URL, name, address string) (*Validator, error) {
 
 	metrics.GetOrRegisterGauge(validatorJailedPattern, name).Update(0)
 
-	metrics.GetOrRegisterHistogram(nodeCosmosRpcLatencyPattern, name).Update(0)
-	metrics.GetOrRegisterGauge(nodeCosmosRpcUnhealthPattern, name).Update(0)
-
 	return &Validator{
 		url:     url.String(),
 		name:    name,
@@ -106,7 +103,7 @@ func (validator *Validator) Update(config health.TimedCounterConfig) {
 				}).Warn("Node cosmos RPC is healthy now")
 			}
 		},
-		nodeCosmosRpcLatencyPattern, nodeCosmosRpcUnhealthPattern, validator.name,
+		nodeCosmosRpcLatencyPattern, nodeCosmosRpcUnhealthPattern, "",
 		&validator.health,
 		config,
 	)
