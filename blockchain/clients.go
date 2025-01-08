@@ -28,6 +28,7 @@ func createClient(prefix, url string) (*resty.Client, error) {
 
 	clientLock.RLock()
 	c, exists := clients[key]
+	clientLock.RUnlock()
 	if exists {
 		return c, nil
 	} else {
