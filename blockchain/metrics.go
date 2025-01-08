@@ -8,6 +8,8 @@ const (
 
 	blockHeightBehindPattern   = "monitor/blockchain/block/height/behind/%v"
 	blockHeightUnhealthPattern = "monitor/blockchain/block/height/unhealth/%v"
+	blockHeightMaxPattern      = "monitor/blockchain/block/height/max"
+	blockHeightMinPattern      = "monitor/blockchain/block/height/min"
 
 	// count of tx in block
 	blockTxCountPattern = "monitor/blockchain/block/tx/count"

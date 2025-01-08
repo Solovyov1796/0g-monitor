@@ -10,6 +10,7 @@ import (
 	"github.com/0glabs/0g-monitor/utils"
 	"github.com/Conflux-Chain/go-conflux-util/metrics"
 	"github.com/Conflux-Chain/go-conflux-util/viper"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/sirupsen/logrus"
 )
 
@@ -98,6 +99,9 @@ func createMetricsForChain() {
 	metrics.GetOrRegisterGauge(failedTxCountPattern).Update(0)
 
 	metrics.GetOrRegisterGauge(blockTxCountPattern).Update(0)
+
+	metrics.GetOrRegisterGauge(blockHeightMaxPattern).Update(0)
+	metrics.GetOrRegisterGauge(blockHeightMinPattern).Update(0)
 }
 
 func monitorAllOnce(config *Config, nodes []*Node, validators []*Validator, consensus *Consensus) {
@@ -179,10 +183,14 @@ func monitorNodeOnce(config *Config, nodes []*Node, consensus *Consensus) {
 		swg.Wait()
 	}
 
-	max := FindMaxBlockHeight(nodes)
+	max, min := FindMaxMinBlockHeight(nodes)
 	if max == 0 {
 		return
 	}
+
+	metrics.GetOrRegisterGauge(blockHeightMaxPattern).Update(int64(max))
+	metrics.GetOrRegisterGauge(blockHeightMinPattern).Update(int64(min))
+
 	defaultBlockchainHeightHealth.Update(config.BlockchainHeightReport, max)
 
 	logrus.WithField("height", max).Debug("Fullnode status report")
@@ -388,14 +396,21 @@ func monitorBlockValidator(config *Config, consensus *Consensus, blockHeight uin
 	metrics.GetOrRegisterGauge(blockValidatorCountPattern).Update(int64(blkValidatorCnt))
 }
 
-func FindMaxBlockHeight(nodes []*Node) uint64 {
+func FindMaxMinBlockHeight(nodes []*Node) (uint64, uint64) {
 	max := uint64(0)
+	min := uint64(math.MaxUint64)
 
 	for _, v := range nodes {
-		if v.rpcHealth.IsSuccess() && max < v.currentBlockInfo.Height {
-			max = v.currentBlockInfo.Height
+		if v.rpcHealth.IsSuccess() {
+			if max < v.currentBlockInfo.Height {
+				max = v.currentBlockInfo.Height
+			}
+
+			if min > v.currentBlockInfo.Height {
+				min = v.currentBlockInfo.Height
+			}
 		}
 	}
 
-	return max
+	return max, min
 }
