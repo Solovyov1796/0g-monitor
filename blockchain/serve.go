@@ -68,17 +68,23 @@ func Monitor(config Config) {
 		monitorMempoolCnt++
 
 		if monitorNodeCnt%config.NodeInterval == 0 {
-			monitorNodeOnce(&config, nodes, consensus)
+			go utils.SafeStartGoroutine(func() {
+				monitorNodeOnce(&config, nodes, consensus)
+			})
 			monitorNodeCnt = 0
 		}
 
 		if monitorValidatorCnt%config.ValidatorInterval == 0 {
-			monitorValidatorOnce(&config, validators)
+			go utils.SafeStartGoroutine(func() {
+				monitorValidatorOnce(&config, validators)
+			})
 			monitorValidatorCnt = 0
 		}
 
 		if monitorMempoolCnt%config.MempoolInterval == 0 {
-			monitorMempoolOnce(&config, consensus)
+			go utils.SafeStartGoroutine(func() {
+				monitorMempoolOnce(&config, consensus)
+			})
 			monitorMempoolCnt = 0
 		}
 	}
