@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/go-resty/resty/v2"
 	"github.com/sirupsen/logrus"
 )
 
 func IsValidatorJailed(url string) (bool, error) {
-	client := resty.New()
+	client, err := createClient("rest", url)
+	if err != nil {
+		return false, err
+	}
 	var result map[string]interface{}
 	resp, err := client.R().SetResult(&result).Get(url)
 	if err != nil {
