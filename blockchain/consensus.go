@@ -64,6 +64,7 @@ func (m *Consensus) UpdateUncommitTxCnt(config health.TimedCounterConfig) int {
 		},
 		func(recovered bool, elapsed time.Duration) {
 			m.cometbftRpcError = ""
+			println("PPP> rpcGetUncommitTxCnt costed: ", elapsed.String())
 			if recovered {
 				logrus.WithFields(logrus.Fields{
 					"node":    "consensus",
@@ -112,6 +113,7 @@ func (m *Consensus) GetBlockValidatorCnt(config health.TimedCounterConfig, heigh
 		},
 		func(recovered bool, elapsed time.Duration) {
 			m.cometbftRpcError = ""
+			println("PPP> rpcGetBlockValidatorCnt costed: ", elapsed.String())
 			if recovered {
 				logrus.WithFields(logrus.Fields{
 					"node":    "consensus",

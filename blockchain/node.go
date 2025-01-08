@@ -161,7 +161,7 @@ func (node *Node) UpdateHeight(config AvailabilityReport) {
 		},
 		func(recovered bool, elapsed time.Duration) {
 			node.ethRpcError = ""
-
+			println("PPP> ", node.name, "-> EthGetLatestBlockInfo costed: ", elapsed.String())
 			// report on recovered
 			if recovered {
 				logrus.WithFields(logrus.Fields{
@@ -343,7 +343,7 @@ func (node *Node) FetchBlockReceiptStatus(config health.TimedCounterConfig, heig
 		},
 		func(recovered bool, elapsed time.Duration) {
 			node.ethRpcError = ""
-
+			println("PPP> ", node.name, "-> FetchBlockReceiptStatus costed: ", elapsed.String())
 			// log on recovered
 			if recovered {
 				logrus.WithFields(logrus.Fields{

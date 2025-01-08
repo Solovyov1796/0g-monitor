@@ -95,6 +95,7 @@ func (validator *Validator) Update(config health.TimedCounterConfig) {
 		},
 		func(recovered bool, elapsed time.Duration) {
 			validator.rpcError = ""
+			println("PPP> IsValidatorJailed costed: ", elapsed.String())
 			// report on recovered
 			if recovered {
 				logrus.WithFields(logrus.Fields{

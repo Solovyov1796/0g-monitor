@@ -172,7 +172,8 @@ func monitorNodeOnce(config *Config, nodes []*Node, consensus *Consensus) {
 		}
 		swg.Wait()
 	}
-
+	println("PPP> monitorNodeOnce-1 costed: ", time.Since(start).String())
+	now := time.Now()
 	max := FindMaxBlockHeight(nodes)
 	if max == 0 {
 		return
@@ -180,22 +181,28 @@ func monitorNodeOnce(config *Config, nodes []*Node, consensus *Consensus) {
 	defaultBlockchainHeightHealth.Update(config.BlockchainHeightReport, max)
 
 	logrus.WithField("height", max).Debug("Fullnode status report")
-
+	println("PPP> monitorNodeOnce-2 costed: ", time.Since(now).String())
+	now = time.Now()
 	for _, v := range nodes {
 		v.CheckHeight(&config.NodeHeightReport, max)
 	}
+	println("PPP> monitorNodeOnce-3 costed: ", time.Since(now).String())
 
 	// detect tx failures and detect fork
 	if blockSwitched {
+		now = time.Now()
 		monitorTxFailures(config, nodes, blockTxInfo)
-
+		println("PPP> monitorNodeOnce-4 costed: ", time.Since(now).String())
+		now = time.Now()
 		// detect chain fork
 		recordor := make(map[uint64]string, 20)
 		for _, v := range nodes {
 			v.CheckFork(recordor)
 		}
-
+		println("PPP> monitorNodeOnce-5 costed: ", time.Since(now).String())
+		now = time.Now()
 		monitorBlockValidator(config, consensus, blockTxInfo.Height)
+		println("PPP> monitorNodeOnce-6 costed: ", time.Since(now).String())
 	}
 }
 
@@ -211,6 +218,7 @@ func countFailedTx(statusMap map[string]bool) int {
 
 func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 	if txInfo != nil {
+		now := time.Now()
 		blockTxCnt := len(txInfo.TxHashes)
 		metrics.GetOrRegisterGauge(blockTxCountPattern).Update(int64(blockTxCnt))
 
@@ -258,6 +266,8 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 				blockFailedTxCntLock.Unlock()
 			}
 		}
+		println("PPP> monitorNodeOnce-5-1 costed: ", time.Since(now).String())
+		now = time.Now()
 
 		totalTxCnt, failedTxCnt := 0, 0
 		for i := 0; i < config.BlockTxCntLimit; i++ {
@@ -286,6 +296,8 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 		} else {
 			metrics.GetOrRegisterGauge(failedTxCountUnhealthPattern).Update(0)
 		}
+		println("PPP> monitorNodeOnce-5-2 costed: ", time.Since(now).String())
+		now = time.Now()
 
 		blockFailedTxCntLock.RLock()
 		recordCnt := len(blockTxCntRecord)
@@ -305,6 +317,8 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 				blockFailedTxCntLock.Unlock()
 			}
 		}
+
+		println("PPP> monitorNodeOnce-5-3 costed: ", time.Since(now).String())
 	} else {
 		metrics.GetOrRegisterGauge(blockTxCountPattern).Update(0)
 	}
@@ -338,6 +352,8 @@ func monitorValidatorOnce(config *Config, validators []*Validator) {
 		}
 		swg.Wait()
 	}
+
+	println("PPP> monitorValidatorOnce-1 costed: ", time.Since(start).String())
 
 	activeValidatorCount := len(validators) - int(jailedCnt)
 	metrics.GetOrRegisterGauge(validatorActiveCountPattern).Update(int64(activeValidatorCount))
