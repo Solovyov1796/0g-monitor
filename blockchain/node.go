@@ -10,12 +10,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type HeightReportConfig struct {
-	health.TimedCounterConfig
-
-	MaxGap uint64 `default:"30"`
-}
-
 type Node struct {
 	name string
 	url  string
@@ -58,14 +52,14 @@ func createMetricsForNode(name string) {
 	metrics.GetOrRegisterGauge(nodeEthRpcUnhealthPattern, name).Update(0)
 }
 
-func (node *Node) UpdateHeight(config AvailabilityReport) {
+func (node *Node) UpdateHeight(maxGap uint64, commonCfg, criticalCfg health.TimedCounterConfig) {
 	var info *BlockInfo
 	executeRequest(
 		func() error {
 			var err error
 			info, err = EthGetLatestBlockInfo(node.url)
 			if err != nil {
-				logrus.WithError(err).WithField("node", node.name).Error("Failed to query block number")
+				logrus.WithError(err).WithField("node", node.name).Info("Failed to query block number")
 				return err
 			}
 
@@ -96,8 +90,8 @@ func (node *Node) UpdateHeight(config AvailabilityReport) {
 
 					metrics.GetOrRegisterGauge(blockCollatedGapPattern, node.name).Update(int64(node.lastBlockGap))
 
-					if node.lastBlockGap > config.MaxGap {
-						unhealthy, unrecovered, elapsed := node.blockGapHealth.OnFailure(config.TimedCounterConfig)
+					if node.lastBlockGap > maxGap {
+						unhealthy, unrecovered, elapsed := node.blockGapHealth.OnFailure(criticalCfg)
 
 						if unhealthy {
 							logrus.WithFields(logrus.Fields{
@@ -121,7 +115,7 @@ func (node *Node) UpdateHeight(config AvailabilityReport) {
 							}).Error("Node block collated gap not recovered yet")
 						}
 					} else {
-						if recovered, elapsed := node.blockGapHealth.OnSuccess(config.TimedCounterConfig); recovered {
+						if recovered, elapsed := node.blockGapHealth.OnSuccess(criticalCfg); recovered {
 							logrus.WithFields(logrus.Fields{
 								"node":    node.name,
 								"elapsed": utils.PrettyElapsed(elapsed),
@@ -172,11 +166,11 @@ func (node *Node) UpdateHeight(config AvailabilityReport) {
 		},
 		nodeEthRpcLatencyPattern, nodeEthRpcUnhealthPattern, node.name,
 		&node.ethRpcHealth,
-		config.TimedCounterConfig,
+		commonCfg,
 	)
 }
 
-func (node *Node) CheckHeight(config *HeightReportConfig, target uint64) {
+func (node *Node) CheckHeight(height, threshold uint64, config health.TimedCounterConfig) {
 	// ignore on rpc error
 	if !node.ethRpcHealth.IsSuccess() {
 		return
@@ -184,23 +178,23 @@ func (node *Node) CheckHeight(config *HeightReportConfig, target uint64) {
 
 	// number of blocks fall behind
 	var behind uint64
-	if node.currentBlockInfo.Height < target {
-		behind = target - node.currentBlockInfo.Height
+	if node.currentBlockInfo.Height < height {
+		behind = height - node.currentBlockInfo.Height
 	}
 
 	metrics.GetOrRegisterGauge(blockHeightBehindPattern, node.name).Update(int64(behind))
-	if behind <= config.MaxGap {
+	if behind <= threshold {
 		if behind > 1 {
 			logrus.WithFields(logrus.Fields{
 				"node":   node.name,
 				"height": node.currentBlockInfo.Height,
-				"target": target,
+				"target": height,
 				"behind": behind,
 			}).Info("Node block height is behind")
 		}
 		metrics.GetOrRegisterGauge(blockHeightUnhealthPattern, node.name).Update(0)
 
-		if recovered, elapsed := node.heightHealth.OnSuccess(config.TimedCounterConfig); recovered {
+		if recovered, elapsed := node.heightHealth.OnSuccess(config); recovered {
 			logrus.WithFields(logrus.Fields{
 				"node":    node.name,
 				"elapsed": utils.PrettyElapsed(elapsed),
@@ -209,7 +203,7 @@ func (node *Node) CheckHeight(config *HeightReportConfig, target uint64) {
 			metrics.GetOrRegisterGauge(blockHeightUnhealthPattern, node.name).Update(0)
 		}
 	} else {
-		unhealthy, unrecovered, elapsed := node.heightHealth.OnFailure(config.TimedCounterConfig)
+		unhealthy, unrecovered, elapsed := node.heightHealth.OnFailure(config)
 
 		if unhealthy {
 			logrus.WithFields(logrus.Fields{

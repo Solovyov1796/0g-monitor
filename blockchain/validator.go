@@ -15,16 +15,18 @@ import (
 )
 
 type Validator struct {
-	url      string
-	name     string
-	address  string
-	health   health.TimedCounter
-	rpcError string
-	jailed   bool
+	url       string
+	name      string
+	address   string
+	health    health.TimedCounter
+	rpcHealth health.TimedCounter
+	rpcError  string
+	jailed    bool
+	commonCfg health.TimedCounterConfig
 }
 
-func MustNewValidator(url *url.URL, name, address string) *Validator {
-	validator, err := NewValidator(url, name, address)
+func MustNewValidator(url *url.URL, name, address string, commonCfg health.TimedCounterConfig) *Validator {
+	validator, err := NewValidator(url, name, address, commonCfg)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"name":    name,
@@ -36,7 +38,7 @@ func MustNewValidator(url *url.URL, name, address string) *Validator {
 	return validator
 }
 
-func NewValidator(url *url.URL, name, address string) (*Validator, error) {
+func NewValidator(url *url.URL, name, address string, commonCfg health.TimedCounterConfig) (*Validator, error) {
 	address = strings.TrimSpace(address)
 	if len(address) == 0 {
 		return nil, errors.New("empty address")
@@ -50,9 +52,10 @@ func NewValidator(url *url.URL, name, address string) (*Validator, error) {
 	metrics.GetOrRegisterGauge(nodeCosmosRpcUnhealthPattern, name).Update(0)
 
 	return &Validator{
-		url:     url.String(),
-		name:    name,
-		address: address,
+		url:       url.String(),
+		name:      name,
+		address:   address,
+		commonCfg: commonCfg,
 	}, nil
 }
 
@@ -64,12 +67,12 @@ func (validator Validator) String() string {
 	return validator.name
 }
 
-func (validator *Validator) Update(config health.TimedCounterConfig) {
+func (validator *Validator) Update() {
 	err := executeRequest(
 		func() error {
 			jailed, err := IsValidatorJailed(validator.url)
 			if err != nil {
-				logrus.WithError(err).WithField("validator", validator.String()).Error("Failed to query validator info")
+				logrus.WithError(err).WithField("validator", validator.String()).Info("Failed to query validator info")
 				return err
 			}
 
@@ -107,13 +110,13 @@ func (validator *Validator) Update(config health.TimedCounterConfig) {
 			}
 		},
 		nodeCosmosRpcLatencyPattern, nodeCosmosRpcUnhealthPattern, validator.name,
-		&validator.health,
-		config,
+		&validator.rpcHealth,
+		validator.commonCfg,
 	)
 
 	if err == nil {
 		if validator.jailed {
-			unhealthy, unrecovered, elapsed := validator.health.OnFailure(config)
+			unhealthy, unrecovered, elapsed := validator.health.OnFailure(validator.commonCfg)
 
 			if unhealthy {
 				logrus.WithFields(logrus.Fields{
@@ -130,13 +133,15 @@ func (validator *Validator) Update(config health.TimedCounterConfig) {
 					"validator": validator.String(),
 				}).Error("Validator jailed and not recovered yet")
 			}
-		} else if recovered, elapsed := validator.health.OnSuccess(config); recovered {
-			logrus.WithFields(logrus.Fields{
-				"elapsed":   utils.PrettyElapsed(elapsed),
-				"validator": validator.String(),
-			}).Warn("Validator unfailed now")
+		} else {
+			if recovered, elapsed := validator.health.OnSuccess(validator.commonCfg); recovered {
+				logrus.WithFields(logrus.Fields{
+					"elapsed":   utils.PrettyElapsed(elapsed),
+					"validator": validator.String(),
+				}).Warn("Validator unfailed now")
 
-			metrics.GetOrRegisterGauge(validatorJailedPattern, validator.name).Update(0)
+				metrics.GetOrRegisterGauge(validatorJailedPattern, validator.name).Update(0)
+			}
 		}
 	}
 }

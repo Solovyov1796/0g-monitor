@@ -16,11 +16,11 @@ func rpcGetUncommitTxCnt(url string) (int, error) {
 	var result map[string]interface{}
 	resp, err := client.R().SetResult(&result).Get(url + "/num_unconfirmed_txs")
 	if err != nil {
-		logrus.WithError(err).WithField("url", url).Error("failed to get uncommitted tx count via cometbft rpc")
+		logrus.WithError(err).WithField("url", url).Info("failed to get uncommitted tx count via cometbft rpc")
 		return 0, err
 	}
 	if resp.StatusCode() != 200 {
-		logrus.WithError(err).WithField("url", url).WithField("status_code", resp.StatusCode()).Error("get uncommitted tx count via cometbft rpc failed")
+		logrus.WithError(err).WithField("url", url).WithField("status_code", resp.StatusCode()).Info("get uncommitted tx count via cometbft rpc failed")
 		return 0, fmt.Errorf("get uncommitted tx count via cometbft rpc failed, status code: %d", resp.StatusCode())
 	}
 
@@ -35,7 +35,7 @@ func rpcGetUncommitTxCnt(url string) (int, error) {
 
 	cnt, err := strconv.ParseInt(cntStr, 10, 64)
 	if err != nil {
-		logrus.WithError(err).WithField("total", cntStr).Error("failed to convert total string to int")
+		logrus.WithError(err).WithField("total", cntStr).Info("failed to convert total string to int")
 		return 0, err
 	}
 
@@ -50,11 +50,11 @@ func rpcGetBlockValidatorCnt(url string, height uint64) (int, error) {
 	var result map[string]interface{}
 	resp, err := client.R().SetResult(&result).Get(fmt.Sprintf("%s/validators?height=%d", url, height))
 	if err != nil {
-		logrus.WithError(err).WithField("url", url).WithField("height", height).Error("failed to get validator list")
+		logrus.WithError(err).WithField("url", url).WithField("height", height).Info("failed to get validator list")
 		return 0, err
 	}
 	if resp.StatusCode() != 200 {
-		logrus.WithError(err).WithField("url", url).WithField("height", height).WithField("status_code", resp.StatusCode()).Error("failed to get validator list")
+		logrus.WithError(err).WithField("url", url).WithField("height", height).WithField("status_code", resp.StatusCode()).Info("failed to get validator list")
 		return 0, fmt.Errorf("failed to get validator list, status code: %d", resp.StatusCode())
 	}
 
@@ -69,7 +69,7 @@ func rpcGetBlockValidatorCnt(url string, height uint64) (int, error) {
 
 	total, err := strconv.ParseInt(totalStr, 10, 64)
 	if err != nil {
-		logrus.WithError(err).WithField("total", totalStr).Error("failed to convert total string to int")
+		logrus.WithError(err).WithField("total", totalStr).Info("failed to convert total string to int")
 		return 0, err
 	}
 

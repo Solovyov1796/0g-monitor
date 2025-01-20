@@ -7,36 +7,38 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var defaultBlockchainHeightHealth BlockchainHeightHealth
-
-type BlockchainHeightHealth struct {
-	height uint64
-	health health.TimedCounter
+type GrowChecker struct {
+	lastHeight uint64
+	health     health.TimedCounter
+	cfg        health.TimedCounterConfig
 }
 
-func (bhh *BlockchainHeightHealth) Update(config health.TimedCounterConfig, height uint64) {
-	if bhh.height == 0 {
-		metrics.GetOrRegisterGauge(chainHeightHaltPattern).Update(0)
+func MustNewGrowChecker(healthCfg health.TimedCounterConfig) *GrowChecker {
+	metrics.GetOrRegisterGauge(chainHeightHaltPattern).Update(0)
+	return &GrowChecker{
+		cfg: healthCfg,
 	}
+}
 
-	if height > bhh.height {
-		if recovered, elapsed := bhh.health.OnSuccess(config); recovered {
+func (hc *GrowChecker) Check(height uint64) {
+	if height > hc.lastHeight {
+		if recovered, elapsed := hc.health.OnSuccess(hc.cfg); recovered {
 			logrus.WithFields(logrus.Fields{
 				"elapsed": utils.PrettyElapsed(elapsed),
-				"old":     bhh.height,
+				"old":     hc.lastHeight,
 				"new":     height,
 			}).Warn("Blockchain height is growing again")
 
 			metrics.GetOrRegisterGauge(chainHeightHaltPattern).Update(0)
 		}
 
-		bhh.height = height
+		hc.lastHeight = height
 	} else {
-		unhealthy, unrecovered, elapsed := bhh.health.OnFailure(config)
+		unhealthy, unrecovered, elapsed := hc.health.OnFailure(hc.cfg)
 
 		newHeight := height
 		if newHeight == 0 {
-			newHeight = bhh.height
+			newHeight = hc.lastHeight
 		}
 
 		if unhealthy {

@@ -34,7 +34,7 @@ func EthGetLatestBlockInfo(url string) (*BlockInfo, error) {
 	}
 
 	if resp.StatusCode() != 200 {
-		logrus.WithError(err).WithField("url", url).WithField("status_code", resp.StatusCode()).Error("get latest block info via ethereum rpc failed")
+		logrus.WithError(err).WithField("url", url).WithField("status_code", resp.StatusCode()).Info("get latest block info via ethereum rpc failed")
 		return nil, fmt.Errorf("get latest block info via ethereum rpc failed, status code: %d", resp.StatusCode())
 	}
 
@@ -101,7 +101,7 @@ func EthFetchTxReceiptStatus(url string, txHash string) (uint64, error) {
 	}
 
 	if resp.StatusCode() != 200 {
-		logrus.WithError(err).WithField("url", url).WithField("status_code", resp.StatusCode()).Error("fetch tx receipt status via ethereum rpc failed")
+		logrus.WithError(err).WithField("url", url).WithField("status_code", resp.StatusCode()).Info("fetch tx receipt status via ethereum rpc failed")
 		return 0, fmt.Errorf("fetch tx receipt status via ethereum rpc failed, status code: %d", resp.StatusCode())
 	}
 
@@ -142,7 +142,7 @@ func EthFetchBlockReceiptStatus(url string, height uint64) (map[string]bool, err
 	}
 
 	if resp.StatusCode() != 200 {
-		logrus.WithError(err).WithField("url", url).WithField("status_code", resp.StatusCode()).Error("fetch block receipt status via ethereum rpc failed")
+		logrus.WithError(err).WithField("url", url).WithField("status_code", resp.StatusCode()).Info("fetch block receipt status via ethereum rpc failed")
 		return nil, fmt.Errorf("fetch block receipt status via ethereum rpc failed, status code: %d", resp.StatusCode())
 	}
 

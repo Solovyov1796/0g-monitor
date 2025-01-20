@@ -15,9 +15,11 @@ type Consensus struct {
 
 	cometbftRpcHealth health.TimedCounter
 	cometbftRpcError  string // last rpc error message
+
+	commonCfg health.TimedCounterConfig
 }
 
-func MustNewConsensus(urlstr string) *Consensus {
+func MustNewConsensus(urlstr string, commonCfg health.TimedCounterConfig) *Consensus {
 	url, _ := url.Parse(urlstr)
 
 	metrics.GetOrRegisterGauge(mempoolUncommitTxCntPattern).Update(0)
@@ -27,11 +29,12 @@ func MustNewConsensus(urlstr string) *Consensus {
 	metrics.GetOrRegisterGauge(nodeCometbftRpcUnhealthPattern, "consensus").Update(0)
 
 	return &Consensus{
-		url: url.String(),
+		url:       url.String(),
+		commonCfg: commonCfg,
 	}
 }
 
-func (m *Consensus) UpdateUncommitTxCnt(config health.TimedCounterConfig) int {
+func (m *Consensus) UpdateUncommitTxCnt() int {
 	var unconfirmedTxCnt int
 	executeRequest(
 		func() error {
@@ -73,13 +76,13 @@ func (m *Consensus) UpdateUncommitTxCnt(config health.TimedCounterConfig) int {
 		},
 		nodeCometbftRpcLatencyPattern, nodeCometbftRpcUnhealthPattern, "consensus",
 		&m.cometbftRpcHealth,
-		config,
+		m.commonCfg,
 	)
 
 	return unconfirmedTxCnt
 }
 
-func (m *Consensus) GetBlockValidatorCnt(config health.TimedCounterConfig, height uint64) int {
+func (m *Consensus) GetBlockValidatorCnt(height uint64) int {
 	var validatorCnt int
 	executeRequest(
 		func() error {
@@ -121,7 +124,7 @@ func (m *Consensus) GetBlockValidatorCnt(config health.TimedCounterConfig, heigh
 		},
 		nodeCometbftRpcLatencyPattern, nodeCometbftRpcUnhealthPattern, "consensus",
 		&m.cometbftRpcHealth,
-		config,
+		m.commonCfg,
 	)
 
 	return validatorCnt
