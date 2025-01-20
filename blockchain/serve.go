@@ -191,7 +191,9 @@ func monitorNodeOnce(config *Config, nodes []*Node, consensus *Consensus, hc *Gr
 		v.CheckFork(recordor)
 	}
 
-	monitorBlockValidator(config, consensus, blockTxInfo.Height)
+	if blockTxInfo != nil {
+		monitorBlockValidator(config, consensus, blockTxInfo.Height)
+	}
 }
 
 func countFailedTx(statusMap map[string]bool) int {
