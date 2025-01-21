@@ -158,12 +158,21 @@ func monitorNodeOnce(config *Config, nodes []*Node, consensus *Consensus, hc *Gr
 				if !existed {
 					blockFailedTxCntLock.Lock()
 					blockTxCntRecord[v.currentBlockInfo.Height] = len(v.currentBlockInfo.TxHashes)
-					blockFailedTxCntLock.Unlock()
 
-					blockTxInfo = &BlockTxInfo{
-						Height:   v.currentBlockInfo.Height,
-						TxHashes: v.currentBlockInfo.TxHashes,
+					if blockTxInfo != nil {
+						if blockTxInfo.Height < v.currentBlockInfo.Height {
+							blockTxInfo = &BlockTxInfo{
+								Height:   v.currentBlockInfo.Height,
+								TxHashes: v.currentBlockInfo.TxHashes,
+							}
+						}
+					} else {
+						blockTxInfo = &BlockTxInfo{
+							Height:   v.currentBlockInfo.Height,
+							TxHashes: v.currentBlockInfo.TxHashes,
+						}
 					}
+					blockFailedTxCntLock.Unlock()
 				}
 			}(nodes[i])
 		}
