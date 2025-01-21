@@ -403,7 +403,7 @@ func monitorBlockValidator(config *Config, consensus *Consensus, blockHeight uin
 			logrus.WithFields(logrus.Fields{
 				"elapsed": utils.PrettyElapsed(elapsed),
 				"online":  fmt.Sprintf("%.2f%%", percentage),
-				"max":     200,
+				"max":     fmt.Sprint(config.ValidatorCfg.MaxSize),
 			}).Warn("Percentage of online validators is normal now")
 			metrics.GetOrRegisterGauge(validatorActiveCountUnhealthPattern).Update(0)
 		}
@@ -414,7 +414,7 @@ func monitorBlockValidator(config *Config, consensus *Consensus, blockHeight uin
 			logrus.WithFields(logrus.Fields{
 				"elapsed": utils.PrettyElapsed(elapsed),
 				"online":  fmt.Sprintf("%.2f%%", percentage),
-				"max":     200,
+				"max":     fmt.Sprint(config.ValidatorCfg.MaxSize),
 			}).Error("Percentage of online validators is too low now")
 		}
 
@@ -422,7 +422,7 @@ func monitorBlockValidator(config *Config, consensus *Consensus, blockHeight uin
 			logrus.WithFields(logrus.Fields{
 				"elapsed": utils.PrettyElapsed(elapsed),
 				"online":  fmt.Sprintf("%.2f%%", percentage),
-				"max":     200,
+				"max":     fmt.Sprint(config.ValidatorCfg.MaxSize),
 			}).Error("Percentage of online validators is too low yet")
 		}
 	}

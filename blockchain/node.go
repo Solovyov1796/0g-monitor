@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"fmt"
 	"net/url"
 	"time"
 
@@ -66,9 +67,9 @@ func (node *Node) UpdateHeight(maxGap uint64, commonCfg, criticalCfg health.Time
 			if info.Height < node.currentBlockInfo.Height {
 				logrus.WithFields(logrus.Fields{
 					"node":     node.name,
-					"old":      node.currentBlockInfo.Height,
-					"new":      info.Height,
-					"reverted": node.currentBlockInfo.Height - info.Height,
+					"old":      fmt.Sprint(node.currentBlockInfo.Height),
+					"new":      fmt.Sprint(info.Height),
+					"reverted": fmt.Sprint(node.currentBlockInfo.Height - info.Height),
 				}).Warn("Block reorg detected")
 			}
 
@@ -82,9 +83,9 @@ func (node *Node) UpdateHeight(maxGap uint64, commonCfg, criticalCfg health.Time
 					if deltaBlockHeight > 1 {
 						logrus.WithFields(logrus.Fields{
 							"node":    node.name,
-							"last":    node.currentBlockInfo.Height,
-							"current": info.Height,
-							"gap":     node.lastBlockGap,
+							"last":    fmt.Sprint(node.currentBlockInfo.Height),
+							"current": fmt.Sprint(info.Height),
+							"gap":     fmt.Sprint(node.lastBlockGap),
 						}).Info("Node block collated gap with more than 1 block")
 					}
 
@@ -96,9 +97,9 @@ func (node *Node) UpdateHeight(maxGap uint64, commonCfg, criticalCfg health.Time
 						if unhealthy {
 							logrus.WithFields(logrus.Fields{
 								"node":         node.name,
-								"height":       node.currentBlockInfo.Height,
+								"height":       fmt.Sprint(node.currentBlockInfo.Height),
 								"hash":         node.currentBlockInfo.Hash,
-								"collated_gap": node.lastBlockGap,
+								"collated_gap": fmt.Sprint(node.lastBlockGap),
 								"elapsed":      utils.PrettyElapsed(elapsed),
 							}).Error("Node block collated gap became unhealthy")
 							metrics.GetOrRegisterGauge(blockCollatedGapUnhealthPattern, node.name).Update(1)
@@ -109,9 +110,9 @@ func (node *Node) UpdateHeight(maxGap uint64, commonCfg, criticalCfg health.Time
 							logrus.WithFields(logrus.Fields{
 								"node":         node.name,
 								"elapsed":      utils.PrettyElapsed(elapsed),
-								"height":       node.currentBlockInfo.Height,
+								"height":       fmt.Sprint(node.currentBlockInfo.Height),
 								"hash":         node.currentBlockInfo.Hash,
-								"collated_gap": node.lastBlockGap,
+								"collated_gap": fmt.Sprint(node.lastBlockGap),
 							}).Error("Node block collated gap not recovered yet")
 						}
 					} else {
@@ -183,22 +184,22 @@ func (node *Node) CheckHeight(height, threshold uint64, config health.TimedCount
 	}
 
 	metrics.GetOrRegisterGauge(blockHeightBehindPattern, node.name).Update(int64(behind))
-	if behind <= threshold {
-		if behind > 1 {
-			logrus.WithFields(logrus.Fields{
-				"node":   node.name,
-				"height": node.currentBlockInfo.Height,
-				"target": height,
-				"behind": behind,
-			}).Info("Node block height is behind")
-		}
-		metrics.GetOrRegisterGauge(blockHeightUnhealthPattern, node.name).Update(0)
+	if behind > 1 {
+		logrus.WithFields(logrus.Fields{
+			"node":   node.name,
+			"height": fmt.Sprint(node.currentBlockInfo.Height),
+			"target": fmt.Sprint(height),
+			"behind": fmt.Sprint(behind),
+		}).Info("Node block height is behind")
+	}
 
+	if behind <= threshold {
 		if recovered, elapsed := node.heightHealth.OnSuccess(config); recovered {
 			logrus.WithFields(logrus.Fields{
 				"node":    node.name,
 				"elapsed": utils.PrettyElapsed(elapsed),
-				"behind":  behind,
+				"target":  fmt.Sprint(height),
+				"behind":  fmt.Sprint(behind),
 			}).Warn("Node block height is healthy now")
 			metrics.GetOrRegisterGauge(blockHeightUnhealthPattern, node.name).Update(0)
 		}
@@ -209,7 +210,8 @@ func (node *Node) CheckHeight(height, threshold uint64, config health.TimedCount
 			logrus.WithFields(logrus.Fields{
 				"node":    node.name,
 				"elapsed": utils.PrettyElapsed(elapsed),
-				"behind":  behind,
+				"target":  fmt.Sprint(height),
+				"behind":  fmt.Sprint(behind),
 			}).Error("Node block height became unhealthy")
 			metrics.GetOrRegisterGauge(blockHeightUnhealthPattern, node.name).Update(1)
 		}
@@ -218,7 +220,8 @@ func (node *Node) CheckHeight(height, threshold uint64, config health.TimedCount
 			logrus.WithFields(logrus.Fields{
 				"node":    node.name,
 				"elapsed": utils.PrettyElapsed(elapsed),
-				"behind":  behind,
+				"target":  fmt.Sprint(height),
+				"behind":  fmt.Sprint(behind),
 			}).Error("Node block height not recovered yet")
 		}
 	}
@@ -232,7 +235,7 @@ func (node *Node) CheckFork(recordor map[uint64]string) {
 			// detected fork!
 			logrus.WithFields(logrus.Fields{
 				"node":         node.name,
-				"height":       node.currentBlockInfo.Height,
+				"height":       fmt.Sprint(node.currentBlockInfo.Height),
 				"hash":         node.currentBlockInfo.Hash,
 				"existed_hash": existedHash,
 			}).Error("Node block hash is different from existed one")
