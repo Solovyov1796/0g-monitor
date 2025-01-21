@@ -23,6 +23,11 @@ func MustNewGrowChecker(healthCfg health.TimedCounterConfig) *GrowChecker {
 }
 
 func (hc *GrowChecker) Check(height uint64) {
+	if hc.lastHeight == 0 {
+		metrics.GetOrRegisterGauge(chainHeightHaltPattern).Update(0)
+		return
+	}
+
 	if height > hc.lastHeight {
 		if recovered, elapsed := hc.health.OnSuccess(hc.cfg); recovered {
 			logrus.WithFields(logrus.Fields{
@@ -36,6 +41,11 @@ func (hc *GrowChecker) Check(height uint64) {
 
 		hc.lastHeight = height
 	} else {
+		logrus.WithFields(logrus.Fields{
+			"old": fmt.Sprint(hc.lastHeight),
+			"new": fmt.Sprint(height),
+		}).Info("new height is behind record height")
+
 		unhealthy, unrecovered, elapsed := hc.health.OnFailure(hc.cfg)
 
 		newHeight := height
