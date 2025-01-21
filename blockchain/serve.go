@@ -44,16 +44,18 @@ func Monitor(config Config) {
 	url, _ := url.Parse(config.CosmosRest)
 	for name, address := range config.Validators {
 		logrus.WithField("name", name).WithField("address", address).Debug("Start to monitor validator")
-		validators = append(validators, MustNewValidator(url, name, address))
+		validators = append(validators, MustNewValidator(url, name, address, config.CommonEvtReportCfg))
 	}
 
-	consensus := MustNewConsensus(config.CometbftRPC)
+	consensus := MustNewConsensus(config.CometbftRPC, config.CommonEvtReportCfg)
+
+	heightChecker := MustNewGrowChecker(config.CriticalEvtReportCfg)
 
 	blockTxCntRecord = make(map[uint64]int, config.BlockTxCntLimit)
 	blockFailedTxCntRecord = make(map[uint64]int, config.BlockTxCntLimit)
 
 	// Monitor once immediately
-	monitorAllOnce(&config, nodes, validators, consensus)
+	monitorAllOnce(&config, nodes, validators, consensus, heightChecker)
 
 	// Monitor node status periodically
 	ticker := time.NewTicker(1 * time.Second)
@@ -68,12 +70,12 @@ func Monitor(config Config) {
 		monitorMempoolCnt++
 
 		if monitorNodeCnt%config.NodeInterval == 0 {
-			monitorNodeOnce(&config, nodes, consensus)
+			monitorNodeOnce(&config, nodes, consensus, heightChecker)
 			monitorNodeCnt = 0
 		}
 
 		if monitorValidatorCnt%config.ValidatorInterval == 0 {
-			monitorValidatorOnce(&config, validators)
+			monitorValidatorOnce(validators)
 			monitorValidatorCnt = 0
 		}
 
@@ -94,7 +96,7 @@ func createMetricsForChain() {
 	metrics.GetOrRegisterGauge(blockTxCountPattern).Update(0)
 }
 
-func monitorAllOnce(config *Config, nodes []*Node, validators []*Validator, consensus *Consensus) {
+func monitorAllOnce(config *Config, nodes []*Node, validators []*Validator, consensus *Consensus, hc *GrowChecker) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -110,13 +112,13 @@ func monitorAllOnce(config *Config, nodes []*Node, validators []*Validator, cons
 	allTasks.Add(1)
 	go utils.SafeStartGoroutine(func() {
 		defer allTasks.Done()
-		monitorNodeOnce(config, nodes, consensus)
+		monitorNodeOnce(config, nodes, consensus, hc)
 	})
 
 	allTasks.Add(1)
 	go utils.SafeStartGoroutine(func() {
 		defer allTasks.Done()
-		monitorValidatorOnce(config, validators)
+		monitorValidatorOnce(validators)
 	})
 
 	allTasks.Add(1)
@@ -128,7 +130,7 @@ func monitorAllOnce(config *Config, nodes []*Node, validators []*Validator, cons
 	allTasks.Wait()
 }
 
-func monitorNodeOnce(config *Config, nodes []*Node, consensus *Consensus) {
+func monitorNodeOnce(config *Config, nodes []*Node, consensus *Consensus, hc *GrowChecker) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -139,7 +141,6 @@ func monitorNodeOnce(config *Config, nodes []*Node, consensus *Consensus) {
 		}
 	}()
 
-	blockSwitched := false
 	var blockTxInfo *BlockTxInfo
 
 	if len(nodes) > 0 {
@@ -149,25 +150,29 @@ func monitorNodeOnce(config *Config, nodes []*Node, consensus *Consensus) {
 			swg.Add()
 			go func(v *Node) {
 				defer swg.Done()
-				v.UpdateHeight(config.AvailabilityReport)
+				v.UpdateHeight(config.BlockGapThreshold, config.CommonEvtReportCfg, config.CriticalEvtReportCfg)
 				// generate block tx info for new block
 				blockFailedTxCntLock.RLock()
-				if _, existed := blockTxCntRecord[v.currentBlockInfo.Height]; !existed {
-					blockFailedTxCntLock.RUnlock()
-					if blockFailedTxCntLock.TryLock() {
-						defer blockFailedTxCntLock.Unlock()
-						blockTxCntRecord[v.currentBlockInfo.Height] = len(v.currentBlockInfo.TxHashes)
+				_, existed := blockTxCntRecord[v.currentBlockInfo.Height]
+				blockFailedTxCntLock.RUnlock()
+				if !existed {
+					blockFailedTxCntLock.Lock()
+					blockTxCntRecord[v.currentBlockInfo.Height] = len(v.currentBlockInfo.TxHashes)
+
+					if blockTxInfo != nil {
+						if blockTxInfo.Height < v.currentBlockInfo.Height {
+							blockTxInfo = &BlockTxInfo{
+								Height:   v.currentBlockInfo.Height,
+								TxHashes: v.currentBlockInfo.TxHashes,
+							}
+						}
+					} else {
 						blockTxInfo = &BlockTxInfo{
 							Height:   v.currentBlockInfo.Height,
 							TxHashes: v.currentBlockInfo.TxHashes,
 						}
-
-						if !blockSwitched {
-							blockSwitched = true
-						}
 					}
-				} else {
-					blockFailedTxCntLock.RUnlock()
+					blockFailedTxCntLock.Unlock()
 				}
 			}(nodes[i])
 		}
@@ -178,24 +183,24 @@ func monitorNodeOnce(config *Config, nodes []*Node, consensus *Consensus) {
 	if max == 0 {
 		return
 	}
-	defaultBlockchainHeightHealth.Update(config.BlockchainHeightReport, max)
+
+	hc.Check(max)
 
 	logrus.WithField("height", max).Debug("Fullnode status report")
 
 	for _, v := range nodes {
-		v.CheckHeight(&config.NodeHeightReport, max)
+		v.CheckHeight(max, config.BlockBehindThreshold, config.CriticalEvtReportCfg)
 	}
 
-	// detect tx failures and detect fork
-	if blockSwitched {
-		monitorTxFailures(config, nodes, blockTxInfo)
+	monitorTxFailures(config, nodes, blockTxInfo)
 
-		// detect chain fork
-		recordor := make(map[uint64]string, 20)
-		for _, v := range nodes {
-			v.CheckFork(recordor)
-		}
+	// detect chain fork
+	recordor := make(map[uint64]string, 20)
+	for _, v := range nodes {
+		v.CheckFork(recordor)
+	}
 
+	if blockTxInfo != nil {
 		monitorBlockValidator(config, consensus, blockTxInfo.Height)
 	}
 }
@@ -220,12 +225,12 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 		if blockTxCnt > 0 {
 			rec := make(map[int]bool, len(nodes))
 			index := int(time.Now().UnixMilli() % int64(len(nodes)))
-			for len(rec) < len(nodes) {
+			for i := 0; i < len(nodes); i++ {
 				nodeIndex := index % len(nodes)
 				if _, exists := rec[index]; !exists {
 					if nodes[nodeIndex].currentBlockInfo.Height == txInfo.Height {
 						rec[index] = true
-						statusMap, err := nodes[nodeIndex].FetchBlockReceiptStatus(config.NodeHeightReport.TimedCounterConfig, txInfo.Height)
+						statusMap, err := nodes[nodeIndex].FetchBlockReceiptStatus(config.CommonEvtReportCfg, txInfo.Height)
 						if err != nil {
 							logrus.WithError(err).
 								WithField("node_height", nodes[nodeIndex].currentBlockInfo.Height).
@@ -233,7 +238,9 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 								WithField("nodeIndex", nodeIndex).
 								Info("Failed to fetch block receipt status")
 						} else {
+							blockFailedTxCntLock.Lock()
 							blockFailedTxCntRecord[txInfo.Height] = countFailedTx(statusMap)
+							blockFailedTxCntLock.Unlock()
 							break
 						}
 					} else {
@@ -242,16 +249,19 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 							"target":    txInfo.Height,
 							"nodeIndex": nodeIndex,
 						}).Info("Skip node because of block height not match")
-						index++
 					}
-				} else {
-					index++
+					i++
 				}
+				index++
 			}
-
-			if _, existed := blockFailedTxCntRecord[txInfo.Height]; !existed {
+			blockFailedTxCntLock.RLock()
+			_, existed := blockFailedTxCntRecord[txInfo.Height]
+			blockFailedTxCntLock.RUnlock()
+			if !existed {
 				logrus.WithField("height", txInfo.Height).Info("Failed to fetch block receipt status for this height, set to 0")
+				blockFailedTxCntLock.Lock()
 				blockFailedTxCntRecord[txInfo.Height] = 0
+				blockFailedTxCntLock.Unlock()
 			}
 		}
 
@@ -262,10 +272,14 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 			}
 			targetHeight := txInfo.Height - uint64(i)
 			blockFailedTxCntLock.RLock()
-			defer blockFailedTxCntLock.RUnlock()
-			if cnt, existed := blockTxCntRecord[targetHeight]; existed {
+			cnt, existed := blockTxCntRecord[targetHeight]
+			failedCnt, ok := blockFailedTxCntRecord[targetHeight]
+			blockFailedTxCntLock.RUnlock()
+			if existed {
 				totalTxCnt += cnt
-				failedTxCnt += blockFailedTxCntRecord[targetHeight]
+				if ok {
+					failedTxCnt += failedCnt
+				}
 			} else {
 				break
 			}
@@ -279,18 +293,22 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 			metrics.GetOrRegisterGauge(failedTxCountUnhealthPattern).Update(0)
 		}
 
-		if len(blockTxCntRecord) > config.BlockTxCntLimit {
+		blockFailedTxCntLock.RLock()
+		recordCnt := len(blockTxCntRecord)
+		blockFailedTxCntLock.RUnlock()
+
+		if recordCnt > config.BlockTxCntLimit {
 			if uint64(config.BlockTxCntLimit) <= nodes[0].currentBlockInfo.Height {
 				startHeight := nodes[0].currentBlockInfo.Height - uint64(config.BlockTxCntLimit)
 
 				blockFailedTxCntLock.Lock()
-				defer blockFailedTxCntLock.Unlock()
 				for k := range blockTxCntRecord {
 					if k < startHeight {
 						delete(blockTxCntRecord, k)
 						delete(blockFailedTxCntRecord, k)
 					}
 				}
+				blockFailedTxCntLock.Unlock()
 			}
 		}
 	} else {
@@ -298,7 +316,7 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 	}
 }
 
-func monitorValidatorOnce(config *Config, validators []*Validator) {
+func monitorValidatorOnce(validators []*Validator) {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
@@ -318,7 +336,7 @@ func monitorValidatorOnce(config *Config, validators []*Validator) {
 			swg.Add()
 			go func(v *Validator) {
 				defer swg.Done()
-				v.Update(config.ValidatorReport)
+				v.Update()
 				if v.jailed {
 					atomic.AddInt32(&jailedCnt, 1)
 				}
@@ -350,23 +368,73 @@ func monitorMempoolOnce(config *Config, consensus *Consensus) {
 		}
 	}()
 
-	unconfirmedTxCnt := consensus.UpdateUncommitTxCnt(config.MempoolReport.TimedCounterConfig)
+	unconfirmedTxCnt := consensus.UpdateUncommitTxCnt()
 
 	metrics.GetOrRegisterGauge(mempoolUncommitTxCntPattern).Update(int64(unconfirmedTxCnt))
-	percentage := float64(unconfirmedTxCnt*100) / float64(config.MempoolReport.PoolSize)
+	percentage := float64(unconfirmedTxCnt*100) / float64(config.MempoolCfg.PoolSize)
 	metrics.GetOrRegisterGauge(mempoolLoadPattern).Update(int64(percentage))
 	logrus.Debug("Mempool status report: unconfirmed tx count = ", unconfirmedTxCnt, ", percentage = ", percentage)
-	if percentage-float64(config.MempoolReport.AlarmThreshold) > 0 {
-		metrics.GetOrRegisterGauge(mempoolHighLoadPattern).Update(1)
+	if percentage-float64(config.MempoolCfg.AlarmThreshold) > 0 {
+		unhealthy, unrecovered, elapsed := config.MempoolCfg.highloadCounter.OnFailure(config.CommonEvtReportCfg)
+		if unhealthy {
+			metrics.GetOrRegisterGauge(mempoolHighLoadPattern).Update(1)
+			logrus.WithFields(logrus.Fields{
+				"elapsed": utils.PrettyElapsed(elapsed),
+				"load":    fmt.Sprintf("%.2f%%", percentage),
+			}).Error("Mempool is high load now")
+		}
+
+		if unrecovered {
+			logrus.WithFields(logrus.Fields{
+				"elapsed": utils.PrettyElapsed(elapsed),
+				"load":    fmt.Sprintf("%.2f%%", percentage),
+			}).Error("Mempool is high load yet")
+		}
 	} else {
-		metrics.GetOrRegisterGauge(mempoolHighLoadPattern).Update(0)
+		if recovered, elapsed := config.MempoolCfg.highloadCounter.OnSuccess(config.CommonEvtReportCfg); recovered {
+			logrus.WithFields(logrus.Fields{
+				"elapsed": utils.PrettyElapsed(elapsed),
+				"load":    fmt.Sprintf("%.2f%%", percentage),
+			}).Warn("Mempool load is normal now")
+			metrics.GetOrRegisterGauge(mempoolHighLoadPattern).Update(0)
+		}
 	}
 }
 
 func monitorBlockValidator(config *Config, consensus *Consensus, blockHeight uint64) {
-	blkValidatorCnt := consensus.GetBlockValidatorCnt(config.MempoolReport.TimedCounterConfig, blockHeight)
+	blkValidatorCnt := consensus.GetBlockValidatorCnt(blockHeight)
 	logrus.Debug(fmt.Sprintf("count of validator who signed block %d = %d", blockHeight, blkValidatorCnt))
 	metrics.GetOrRegisterGauge(blockValidatorCountPattern).Update(int64(blkValidatorCnt))
+
+	percentage := 100 * float64(blkValidatorCnt) / float64(config.ValidatorCfg.MaxSize)
+	if percentage-float64(config.ValidatorCfg.AlarmThreshold) >= 0 {
+		if recovered, elapsed := config.ValidatorCfg.onlinePercentageCounter.OnSuccess(config.CriticalEvtReportCfg); recovered {
+			logrus.WithFields(logrus.Fields{
+				"elapsed": utils.PrettyElapsed(elapsed),
+				"online":  fmt.Sprintf("%.2f%%", percentage),
+				"max":     fmt.Sprint(config.ValidatorCfg.MaxSize),
+			}).Warn("Percentage of online validators is normal now")
+			metrics.GetOrRegisterGauge(validatorActiveCountUnhealthPattern).Update(0)
+		}
+	} else {
+		unhealthy, unrecovered, elapsed := config.ValidatorCfg.onlinePercentageCounter.OnFailure(config.CriticalEvtReportCfg)
+		if unhealthy {
+			metrics.GetOrRegisterGauge(validatorActiveCountUnhealthPattern).Update(1)
+			logrus.WithFields(logrus.Fields{
+				"elapsed": utils.PrettyElapsed(elapsed),
+				"online":  fmt.Sprintf("%.2f%%", percentage),
+				"max":     fmt.Sprint(config.ValidatorCfg.MaxSize),
+			}).Error("Percentage of online validators is too low now")
+		}
+
+		if unrecovered {
+			logrus.WithFields(logrus.Fields{
+				"elapsed": utils.PrettyElapsed(elapsed),
+				"online":  fmt.Sprintf("%.2f%%", percentage),
+				"max":     fmt.Sprint(config.ValidatorCfg.MaxSize),
+			}).Error("Percentage of online validators is too low yet")
+		}
+	}
 }
 
 func FindMaxBlockHeight(nodes []*Node) uint64 {

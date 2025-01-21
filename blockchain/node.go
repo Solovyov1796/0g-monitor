@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"fmt"
 	"net/url"
 	"time"
 
@@ -9,12 +10,6 @@ import (
 	"github.com/Conflux-Chain/go-conflux-util/metrics"
 	"github.com/sirupsen/logrus"
 )
-
-type HeightReportConfig struct {
-	health.TimedCounterConfig
-
-	MaxGap uint64 `default:"30"`
-}
 
 type Node struct {
 	name string
@@ -58,23 +53,23 @@ func createMetricsForNode(name string) {
 	metrics.GetOrRegisterGauge(nodeEthRpcUnhealthPattern, name).Update(0)
 }
 
-func (node *Node) UpdateHeight(config AvailabilityReport) {
+func (node *Node) UpdateHeight(maxGap uint64, commonCfg, criticalCfg health.TimedCounterConfig) {
 	var info *BlockInfo
 	executeRequest(
 		func() error {
 			var err error
 			info, err = EthGetLatestBlockInfo(node.url)
 			if err != nil {
-				logrus.WithError(err).WithField("node", node.name).Error("Failed to query block number")
+				logrus.WithError(err).WithField("node", node.name).Info("Failed to query block number")
 				return err
 			}
 
 			if info.Height < node.currentBlockInfo.Height {
 				logrus.WithFields(logrus.Fields{
 					"node":     node.name,
-					"old":      node.currentBlockInfo.Height,
-					"new":      info.Height,
-					"reverted": node.currentBlockInfo.Height - info.Height,
+					"old":      fmt.Sprint(node.currentBlockInfo.Height),
+					"new":      fmt.Sprint(info.Height),
+					"reverted": fmt.Sprint(node.currentBlockInfo.Height - info.Height),
 				}).Warn("Block reorg detected")
 			}
 
@@ -88,23 +83,23 @@ func (node *Node) UpdateHeight(config AvailabilityReport) {
 					if deltaBlockHeight > 1 {
 						logrus.WithFields(logrus.Fields{
 							"node":    node.name,
-							"last":    node.currentBlockInfo.Height,
-							"current": info.Height,
-							"gap":     node.lastBlockGap,
+							"last":    fmt.Sprint(node.currentBlockInfo.Height),
+							"current": fmt.Sprint(info.Height),
+							"gap":     fmt.Sprint(node.lastBlockGap),
 						}).Info("Node block collated gap with more than 1 block")
 					}
 
 					metrics.GetOrRegisterGauge(blockCollatedGapPattern, node.name).Update(int64(node.lastBlockGap))
 
-					if node.lastBlockGap > config.MaxGap {
-						unhealthy, unrecovered, elapsed := node.blockGapHealth.OnFailure(config.TimedCounterConfig)
+					if node.lastBlockGap > maxGap {
+						unhealthy, unrecovered, elapsed := node.blockGapHealth.OnFailure(criticalCfg)
 
 						if unhealthy {
 							logrus.WithFields(logrus.Fields{
 								"node":         node.name,
-								"height":       node.currentBlockInfo.Height,
+								"height":       fmt.Sprint(node.currentBlockInfo.Height),
 								"hash":         node.currentBlockInfo.Hash,
-								"collated_gap": node.lastBlockGap,
+								"collated_gap": fmt.Sprint(node.lastBlockGap),
 								"elapsed":      utils.PrettyElapsed(elapsed),
 							}).Error("Node block collated gap became unhealthy")
 							metrics.GetOrRegisterGauge(blockCollatedGapUnhealthPattern, node.name).Update(1)
@@ -115,13 +110,13 @@ func (node *Node) UpdateHeight(config AvailabilityReport) {
 							logrus.WithFields(logrus.Fields{
 								"node":         node.name,
 								"elapsed":      utils.PrettyElapsed(elapsed),
-								"height":       node.currentBlockInfo.Height,
+								"height":       fmt.Sprint(node.currentBlockInfo.Height),
 								"hash":         node.currentBlockInfo.Hash,
-								"collated_gap": node.lastBlockGap,
+								"collated_gap": fmt.Sprint(node.lastBlockGap),
 							}).Error("Node block collated gap not recovered yet")
 						}
 					} else {
-						if recovered, elapsed := node.blockGapHealth.OnSuccess(config.TimedCounterConfig); recovered {
+						if recovered, elapsed := node.blockGapHealth.OnSuccess(criticalCfg); recovered {
 							logrus.WithFields(logrus.Fields{
 								"node":    node.name,
 								"elapsed": utils.PrettyElapsed(elapsed),
@@ -172,11 +167,11 @@ func (node *Node) UpdateHeight(config AvailabilityReport) {
 		},
 		nodeEthRpcLatencyPattern, nodeEthRpcUnhealthPattern, node.name,
 		&node.ethRpcHealth,
-		config.TimedCounterConfig,
+		commonCfg,
 	)
 }
 
-func (node *Node) CheckHeight(config *HeightReportConfig, target uint64) {
+func (node *Node) CheckHeight(height, threshold uint64, config health.TimedCounterConfig) {
 	// ignore on rpc error
 	if !node.ethRpcHealth.IsSuccess() {
 		return
@@ -184,38 +179,39 @@ func (node *Node) CheckHeight(config *HeightReportConfig, target uint64) {
 
 	// number of blocks fall behind
 	var behind uint64
-	if node.currentBlockInfo.Height < target {
-		behind = target - node.currentBlockInfo.Height
+	if node.currentBlockInfo.Height < height {
+		behind = height - node.currentBlockInfo.Height
 	}
 
 	metrics.GetOrRegisterGauge(blockHeightBehindPattern, node.name).Update(int64(behind))
-	if behind <= config.MaxGap {
-		if behind > 1 {
-			logrus.WithFields(logrus.Fields{
-				"node":   node.name,
-				"height": node.currentBlockInfo.Height,
-				"target": target,
-				"behind": behind,
-			}).Info("Node block height is behind")
-		}
-		metrics.GetOrRegisterGauge(blockHeightUnhealthPattern, node.name).Update(0)
+	if behind > 1 {
+		logrus.WithFields(logrus.Fields{
+			"node":   node.name,
+			"height": fmt.Sprint(node.currentBlockInfo.Height),
+			"target": fmt.Sprint(height),
+			"behind": fmt.Sprint(behind),
+		}).Info("Node block height is behind")
+	}
 
-		if recovered, elapsed := node.heightHealth.OnSuccess(config.TimedCounterConfig); recovered {
+	if behind <= threshold {
+		if recovered, elapsed := node.heightHealth.OnSuccess(config); recovered {
 			logrus.WithFields(logrus.Fields{
 				"node":    node.name,
 				"elapsed": utils.PrettyElapsed(elapsed),
-				"behind":  behind,
+				"target":  fmt.Sprint(height),
+				"behind":  fmt.Sprint(behind),
 			}).Warn("Node block height is healthy now")
 			metrics.GetOrRegisterGauge(blockHeightUnhealthPattern, node.name).Update(0)
 		}
 	} else {
-		unhealthy, unrecovered, elapsed := node.heightHealth.OnFailure(config.TimedCounterConfig)
+		unhealthy, unrecovered, elapsed := node.heightHealth.OnFailure(config)
 
 		if unhealthy {
 			logrus.WithFields(logrus.Fields{
 				"node":    node.name,
 				"elapsed": utils.PrettyElapsed(elapsed),
-				"behind":  behind,
+				"target":  fmt.Sprint(height),
+				"behind":  fmt.Sprint(behind),
 			}).Error("Node block height became unhealthy")
 			metrics.GetOrRegisterGauge(blockHeightUnhealthPattern, node.name).Update(1)
 		}
@@ -224,7 +220,8 @@ func (node *Node) CheckHeight(config *HeightReportConfig, target uint64) {
 			logrus.WithFields(logrus.Fields{
 				"node":    node.name,
 				"elapsed": utils.PrettyElapsed(elapsed),
-				"behind":  behind,
+				"target":  fmt.Sprint(height),
+				"behind":  fmt.Sprint(behind),
 			}).Error("Node block height not recovered yet")
 		}
 	}
@@ -238,7 +235,7 @@ func (node *Node) CheckFork(recordor map[uint64]string) {
 			// detected fork!
 			logrus.WithFields(logrus.Fields{
 				"node":         node.name,
-				"height":       node.currentBlockInfo.Height,
+				"height":       fmt.Sprint(node.currentBlockInfo.Height),
 				"hash":         node.currentBlockInfo.Hash,
 				"existed_hash": existedHash,
 			}).Error("Node block hash is different from existed one")

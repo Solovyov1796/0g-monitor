@@ -1,48 +1,62 @@
 package blockchain
 
 import (
+	"fmt"
+
 	"github.com/0glabs/0g-monitor/utils"
 	"github.com/Conflux-Chain/go-conflux-util/health"
 	"github.com/Conflux-Chain/go-conflux-util/metrics"
 	"github.com/sirupsen/logrus"
 )
 
-var defaultBlockchainHeightHealth BlockchainHeightHealth
-
-type BlockchainHeightHealth struct {
-	height uint64
-	health health.TimedCounter
+type GrowChecker struct {
+	lastHeight uint64
+	health     health.TimedCounter
+	cfg        health.TimedCounterConfig
 }
 
-func (bhh *BlockchainHeightHealth) Update(config health.TimedCounterConfig, height uint64) {
-	if bhh.height == 0 {
+func MustNewGrowChecker(healthCfg health.TimedCounterConfig) *GrowChecker {
+	metrics.GetOrRegisterGauge(chainHeightHaltPattern).Update(0)
+	return &GrowChecker{
+		cfg: healthCfg,
+	}
+}
+
+func (hc *GrowChecker) Check(height uint64) {
+	if hc.lastHeight == 0 {
 		metrics.GetOrRegisterGauge(chainHeightHaltPattern).Update(0)
+		return
 	}
 
-	if height > bhh.height {
-		if recovered, elapsed := bhh.health.OnSuccess(config); recovered {
+	if height > hc.lastHeight {
+		if recovered, elapsed := hc.health.OnSuccess(hc.cfg); recovered {
 			logrus.WithFields(logrus.Fields{
 				"elapsed": utils.PrettyElapsed(elapsed),
-				"old":     bhh.height,
-				"new":     height,
+				"old":     fmt.Sprint(hc.lastHeight),
+				"new":     fmt.Sprint(height),
 			}).Warn("Blockchain height is growing again")
 
 			metrics.GetOrRegisterGauge(chainHeightHaltPattern).Update(0)
 		}
 
-		bhh.height = height
+		hc.lastHeight = height
 	} else {
-		unhealthy, unrecovered, elapsed := bhh.health.OnFailure(config)
+		logrus.WithFields(logrus.Fields{
+			"old": fmt.Sprint(hc.lastHeight),
+			"new": fmt.Sprint(height),
+		}).Info("new height is behind record height")
+
+		unhealthy, unrecovered, elapsed := hc.health.OnFailure(hc.cfg)
 
 		newHeight := height
 		if newHeight == 0 {
-			newHeight = bhh.height
+			newHeight = hc.lastHeight
 		}
 
 		if unhealthy {
 			logrus.WithFields(logrus.Fields{
 				"elapsed": utils.PrettyElapsed(elapsed),
-				"height":  newHeight,
+				"height":  fmt.Sprint(newHeight),
 			}).Error("Blockchain height stops growing")
 
 			metrics.GetOrRegisterGauge(chainHeightHaltPattern).Update(1)
@@ -51,7 +65,7 @@ func (bhh *BlockchainHeightHealth) Update(config health.TimedCounterConfig, heig
 		if unrecovered {
 			logrus.WithFields(logrus.Fields{
 				"elapsed": utils.PrettyElapsed(elapsed),
-				"height":  newHeight,
+				"height":  fmt.Sprint(newHeight),
 			}).Error("Blockchain height stops growing for a long time and not recovered yet")
 		}
 	}

@@ -60,3 +60,13 @@ func ReplacePort(originalURL string, newPort string) (string, error) {
 	}
 	return parsedURL.String(), nil
 }
+
+func PeekUrlHost(rawURL string) (string, error) {
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		fmt.Println("URL parsing error:", err)
+		return "", err
+	}
+
+	return parsedURL.Host, nil
+}
