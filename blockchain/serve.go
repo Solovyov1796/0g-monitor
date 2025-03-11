@@ -424,6 +424,7 @@ func monitorBlockValidator(config *Config, consensus *Consensus, blockHeight uin
 				"elapsed": utils.PrettyElapsed(elapsed),
 				"online":  fmt.Sprintf("%.2f%%", percentage),
 				"max":     fmt.Sprint(config.ValidatorCfg.MaxSize),
+				"height":  fmt.Sprint(blockHeight),
 			}).Error("Percentage of online validators is too low now")
 		}
 
@@ -432,6 +433,7 @@ func monitorBlockValidator(config *Config, consensus *Consensus, blockHeight uin
 				"elapsed": utils.PrettyElapsed(elapsed),
 				"online":  fmt.Sprintf("%.2f%%", percentage),
 				"max":     fmt.Sprint(config.ValidatorCfg.MaxSize),
+				"height":  fmt.Sprint(blockHeight),
 			}).Error("Percentage of online validators is too low yet")
 		}
 	}
