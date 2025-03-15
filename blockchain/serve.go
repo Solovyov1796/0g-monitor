@@ -402,8 +402,8 @@ func monitorMempoolOnce(config *Config, consensus *Consensus) {
 }
 
 func monitorBlockValidator(config *Config, consensus *Consensus, blockHeight uint64, fastestNode *Node) {
-	urlObj, _ := url.Parse(fastestNode.url)
-	consensus.url = ComposeUrl(urlObj.Host, CometbftRpcPort, "")
+	host, _ := utils.PeekUrlHost(fastestNode.url)
+	consensus.url = ComposeUrl(host, CometbftRpcPort, "")
 	blkValidatorCnt := consensus.GetBlockValidatorCnt(blockHeight)
 	logrus.Debug(fmt.Sprintf("count of validator who signed block %d = %d", blockHeight, blkValidatorCnt))
 	metrics.GetOrRegisterGauge(blockValidatorCountPattern).Update(int64(blkValidatorCnt))
