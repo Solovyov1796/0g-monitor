@@ -46,6 +46,12 @@ func EthGetLatestBlockInfo(url string) (*BlockInfo, error) {
 		}).Debug("response of ethereum rpc eth_getBlockByNumber: ")
 	}
 
+	if v, exists := respBody["result"]; !exists || len(v.(map[string]interface{})) == 0 {
+		jsonStr, _ := json.Marshal(respBody)
+		logrus.WithError(err).WithField("url", url).WithField("response", fmt.Sprintf("%+v", string(jsonStr))).Info("get latest block info via ethereum rpc failed")
+		return nil, fmt.Errorf("get latest block info via ethereum rpc failed, data invalid ")
+	}
+
 	// Get the block height from the response
 	blockNumber := respBody["result"].(map[string]interface{})["number"].(string)
 	timestamp := respBody["result"].(map[string]interface{})["timestamp"].(string)

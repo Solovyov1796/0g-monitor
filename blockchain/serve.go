@@ -179,7 +179,7 @@ func monitorNodeOnce(config *Config, nodes []*Node, consensus *Consensus, hc *Gr
 		swg.Wait()
 	}
 
-	max := FindMaxBlockHeight(nodes)
+	max, maxNode := FindMaxBlockHeight(nodes)
 	if max == 0 {
 		return
 	}
@@ -201,7 +201,7 @@ func monitorNodeOnce(config *Config, nodes []*Node, consensus *Consensus, hc *Gr
 	}
 
 	if blockTxInfo != nil {
-		monitorBlockValidator(config, consensus, blockTxInfo.Height)
+		monitorBlockValidator(config, consensus, blockTxInfo.Height, maxNode)
 	}
 }
 
@@ -401,7 +401,9 @@ func monitorMempoolOnce(config *Config, consensus *Consensus) {
 	}
 }
 
-func monitorBlockValidator(config *Config, consensus *Consensus, blockHeight uint64) {
+func monitorBlockValidator(config *Config, consensus *Consensus, blockHeight uint64, fastestNode *Node) {
+	host, _ := utils.PeekUrlHost(fastestNode.url)
+	consensus.url = ComposeUrl(host, CometbftRpcPort, "")
 	blkValidatorCnt := consensus.GetBlockValidatorCnt(blockHeight)
 	logrus.Debug(fmt.Sprintf("count of validator who signed block %d = %d", blockHeight, blkValidatorCnt))
 	metrics.GetOrRegisterGauge(blockValidatorCountPattern).Update(int64(blkValidatorCnt))
@@ -424,6 +426,7 @@ func monitorBlockValidator(config *Config, consensus *Consensus, blockHeight uin
 				"elapsed": utils.PrettyElapsed(elapsed),
 				"online":  fmt.Sprintf("%.2f%%", percentage),
 				"max":     fmt.Sprint(config.ValidatorCfg.MaxSize),
+				"height":  fmt.Sprint(blockHeight),
 			}).Error("Percentage of online validators is too low now")
 		}
 
@@ -432,19 +435,21 @@ func monitorBlockValidator(config *Config, consensus *Consensus, blockHeight uin
 				"elapsed": utils.PrettyElapsed(elapsed),
 				"online":  fmt.Sprintf("%.2f%%", percentage),
 				"max":     fmt.Sprint(config.ValidatorCfg.MaxSize),
+				"height":  fmt.Sprint(blockHeight),
 			}).Error("Percentage of online validators is too low yet")
 		}
 	}
 }
 
-func FindMaxBlockHeight(nodes []*Node) uint64 {
+func FindMaxBlockHeight(nodes []*Node) (uint64, *Node) {
 	max := uint64(0)
-
+	var maxNode *Node
 	for _, v := range nodes {
 		if v.rpcHealth.IsSuccess() && max < v.currentBlockInfo.Height {
 			max = v.currentBlockInfo.Height
+			maxNode = v
 		}
 	}
 
-	return max
+	return max, maxNode
 }
