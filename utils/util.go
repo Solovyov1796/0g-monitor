@@ -68,5 +68,9 @@ func PeekUrlHost(rawURL string) (string, error) {
 		return "", err
 	}
 
+	if strings.Contains(parsedURL.Host, ":") {
+		return strings.Split(parsedURL.Host, ":")[0], nil
+	}
+
 	return parsedURL.Host, nil
 }

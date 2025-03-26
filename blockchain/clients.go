@@ -33,8 +33,8 @@ func createClient(prefix, url string) (*resty.Client, error) {
 		return c, nil
 	} else {
 		transport := &http.Transport{
-			MaxIdleConns:        1,
-			MaxIdleConnsPerHost: 1,
+			MaxIdleConns:        3,
+			MaxIdleConnsPerHost: 3,
 			IdleConnTimeout:     30 * time.Second,
 		}
 		restClient := resty.New().SetTransport(transport).SetHeader("Connection", "keep-alive")
